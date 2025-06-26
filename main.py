@@ -2,19 +2,20 @@ import base64
 import os
 import string
 import uuid
-from contextlib import asynccontextmanager
-from datetime import timedelta, timezone
 import random
 
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-import jwt  # PyJWT
-
+import jwt
 import uvicorn
-from fastapi import FastAPI, Form, UploadFile, File, Depends, HTTPException, Request, Header
+from fastapi import FastAPI, Form, UploadFile, File, Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR, HTTP_201_CREATED
@@ -27,19 +28,20 @@ from schemas import *
 async def lifespan(app: FastAPI):
     await init_db()
     yield
-app = FastAPI(prefix="/api/v1", lifespan=lifespan)
+
+app = FastAPI(lifespan=lifespan)
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-very-secret-key")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 1  # token valid for 1 hour
+ACCESS_TOKEN_EXPIRE_HOURS = 1
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-uploads_directory = os.path.join(os.getcwd(), 'uploads')
-if not os.path.exists(uploads_directory):
-    os.makedirs(uploads_directory)
+uploads_directory = os.path.join(os.getcwd(), "uploads")
+os.makedirs(uploads_directory, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_directory))
 
-app.mount('/uploads', StaticFiles(directory=uploads_directory))
+bearer_scheme = HTTPBearer()
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -47,198 +49,134 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     for err in exc.errors():
         loc = err.get("loc", [])
         field = loc[-1] if loc else "body"
-        msg = err.get("msg")
-        errors.append({"field": field, "message": msg})
-    content = {
+        errors.append({"field": field, "message": err.get("msg")})
+    return JSONResponse(status_code=400, content={
         "status": "error",
         "code": 400,
         "message": "Invalid input",
         "errors": errors,
-    }
-    return JSONResponse(status_code=400, content=content)
+    })
 
-@app.post("/register")
+@app.post("/api/v1/register")
 async def register(payload: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == payload.email).first()
-    if existing_user:
-        err = ErrorResponse(status="error", code=400, message="Invalid input", errors=[ErrorItem(field="email", message="Email already exists")])
-        return JSONResponse(status_code=400, content=err.model_dump())
-    password = pwd_context.hash(payload.password)
-    new_user = User(user_id=str(uuid.uuid4()), firstName=payload.firstName, lastName=payload.lastName, email=str(payload.email), password=password, timezone=payload.timezone, phone=str(payload.phone))
-    db.add(new_user)
+    existing = db.query(User).filter(User.email == payload.email).first()
+    if existing:
+        return JSONResponse(status_code=400, content=ErrorResponse(
+            status="error", code=400, message="Invalid input",
+            errors=[ErrorItem(field="email", message="Email already exists")]
+        ).model_dump())
+    pwd = pwd_context.hash(payload.password)
+    user = User(
+        user_id=str(uuid.uuid4()),
+        firstName=payload.firstName,
+        lastName=payload.lastName,
+        email=payload.email,
+        password=pwd,
+        timezone=payload.timezone,
+        phone=payload.phone,
+    )
+    db.add(user)
     db.commit()
-    db.refresh(new_user)
+    db.refresh(user)
+    resp = UserResponse(
+        userId=user.user_id,
+        email=user.email,
+        firstName=user.firstName,
+        lastName=user.lastName,
+        createdAt=user.createdAt.isoformat()
+    )
+    return JSONResponse(status_code=201, content=SuccessResponse(data=resp.dict()).model_dump())
 
-    user_response = UserResponse(userId=new_user.user_id, email=new_user.email, firstName=new_user.firstName, lastName=new_user.lastName, createdAt=new_user.createdAt.isoformat())
-    resp = SuccessResponse(data=user_response.dict())
-    return JSONResponse(status_code=201, content=resp.model_dump())
-
-
-@app.post("/login")
-async def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    # 1. Verify user exists
+@app.post("/api/v1/login")
+async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
-    if not user:
-        # invalid credentials
-        content = {
+    if not user or not pwd_context.verify(payload.password, user.password):
+        return JSONResponse(status_code=401, content={
             "status": "error",
             "code": 401,
             "message": "Invalid credentials"
-        }
-        return JSONResponse(status_code=401, content=content)
-
-    # 2. Verify password
-    if not pwd_context.verify(payload.password, user.password):
-        content = {
-            "status": "error",
-            "code": 401,
-            "message": "Invalid credentials"
-        }
-        return JSONResponse(status_code=401, content=content)
-
-    # 3. (Optional) Log or store deviceInfo somewhere.
-    # For example, you might have a Device model/table. If not, you can at least log:
-    # print(f"User {user.user_id} logged in from device: {payload.deviceInfo.json()}")
-
-    # 4. Create JWT token
+        })
     now = datetime.utcnow()
     expire = now + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
-    to_encode = {
+    token = jwt.encode({
         "sub": user.user_id,
         "email": user.email,
         "iat": int(now.timestamp()),
-        "exp": int(expire.timestamp()),
-        # you can include deviceInfo if desired:
-        # "device": {"id": payload.deviceInfo.deviceId, "platform": payload.deviceInfo.platform}
-    }
-    token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-    # 5. Prepare response
-    login_data = LoginData(
+        "exp": int(expire.timestamp())
+    }, SECRET_KEY, algorithm=ALGORITHM)
+    data = LoginData(
         token=token,
         userId=user.user_id,
         email=user.email,
         firstName=user.firstName,
         lastName=user.lastName,
-        expiresAt=expire.isoformat()  # datetime; will be serialized as ISO format
+        expiresAt=expire.isoformat()
     )
-    resp = SuccessResponse(data=login_data.dict())
-    return JSONResponse(status_code=200, content=resp.model_dump())
+    return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
 
-def verify_jwt_and_get_user_id(authorization: Optional[str]) -> Optional[str]:
-    if not authorization or not authorization.startswith("Bearer "):
-        return None
-    token = authorization.split(" ", 1)[1].strip()
+def verify_token(creds: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
     except Exception:
-        return None
-    user_id = payload.get("user_id") or payload.get("sub")
+        raise HTTPException(status_code=401, detail="Invalid or missing token")
+    user_id = payload.get("sub")
     if not user_id:
-        return None
-    return str(user_id)
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    return user_id
 
-def codeGenerator() -> str:
+def code_generator() -> str:
     chars = string.ascii_uppercase + string.digits
     return "".join(random.choice(chars) for _ in range(5))
 
-@app.post("/devices")
-async def addDevice(payload: DeviceCreate, authorization: Optional[str] = Header(None, alias="Authorization"), db: Session = Depends(get_db)):
-    user_id = verify_jwt_and_get_user_id(authorization)
-    if user_id is None:
-        return JSONResponse(status_code=401, content={"status": "error", "code": 401, "message": "Invalid or missing token"})
+@app.post("/api/v1/devices", status_code=201)
+async def add_device(payload: DeviceCreate, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    device = Device(user_id=user_id, **payload.dict())
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    return {"status": "success", "data": DeviceResponse.from_orm(device).dict()}
 
-
-@app.post("/tethering-code")
-async def tetheringCode(authorization: Optional[str] = Header(None, alias="Authorization"), db: Session = Depends(get_db)):
-    user_id = verify_jwt_and_get_user_id(authorization)
-    if user_id is None:
-        return JSONResponse(status_code=401, content={"status": "error", "code": 401, "message": "Invalid or missing token"})
-    max_tries = 5
-    code = None
+@app.post("/api/v1/tethering-code", status_code=201)
+async def tethering_code(user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
     now = datetime.utcnow()
-    for _ in range(max_tries):
-        candidate = codeGenerator()
-        expires_at = now + timedelta(seconds=600)
-        # Пробуем вставить
-        new_entry = TetheringCode(
-            code=candidate,
-            user_id=user_id,
-            expiredAt=expires_at,
-            used=False
-        )
-        db.add(new_entry)
+    code = None
+    for _ in range(5):
+        c = code_generator()
+        exp = now + timedelta(seconds=600)
+        entry = TetheringCode(code=c, user_id=user_id, expiredAt=exp, used=False)
+        db.add(entry)
         try:
             db.commit()
-            code = candidate
+            code = c
+            expires_at = exp
             break
         except IntegrityError:
             db.rollback()
-            # Код уже существует, пробуем снова
-            continue
-    if code is None:
-        return JSONResponse(
-            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"status": "error", "message": "Could not generate unique tethering code, try again"}
-        )
-    # Форматируем expiresAt в ISO UTC с Z
-    expires_at_str = (expires_at.replace(tzinfo=timezone.utc)
-                      .isoformat().replace("+00:00", "Z"))
-    return JSONResponse(
-        status_code=HTTP_201_CREATED,
-        content={
-            "status": "success",
-            "data": {
-                "code": code,
-                "expiresAt": expires_at_str,
-                "validitySeconds": 600
-            }
-        }
+    if not code:
+        raise HTTPException(status_code=500, detail="Could not generate unique tethering code")
+    expires_str = expires_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+    return {"status": "success", "data": {"code": code, "expiresAt": expires_str, "validitySeconds": 600}}
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
     )
+    schema["components"]["securitySchemes"] = {
+        "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
+    }
+    for path, ops in schema["paths"].items():
+        if path in ("/api/v1/devices", "/api/v1/tethering-code"):
+            for op in ops.values():
+                op.setdefault("security", []).append({"BearerAuth": []})
+    app.openapi_schema = schema
+    return schema
 
-
-# @app.post("/settings", response_model=ScreenshotResponse)
-# async def upload_screenshot(
-#     user_id: int = Form(...),
-#     device_id: str = Form(...),
-#     category: str = Form(...),
-#     app_name: str = Form(...),
-#     screen_time: int = Form(...),
-#     file: UploadFile = File(...),
-#     db: Session = Depends(get_db),
-# ):
-#     ext = ".jpg"
-#     filename = f"{uuid.uuid4().hex}{ext}"
-#     file_path = os.path.join(uploads_directory, filename)
-#     # Сохранение файла
-#     try:
-#         content = await file.read()
-#         with open(file_path, "wb") as f:
-#             f.write(content)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"Failed to save file: {e}")
-#     # Сохранение в БД
-#     screenshot = Screenshot(
-#         user_id=user_id,
-#         device_id=device_id,
-#         category=category,
-#         app_name=app_name,
-#         screen_time=screen_time,
-#         image_path=file_path,
-#     )
-#     db.add(screenshot)
-#     db.commit()
-#     db.refresh(screenshot)
-#     image_url = f"/uploads/{filename}"
-#     # screenshot.user = user
-#     return ScreenshotResponse(
-#         id=screenshot.id,
-#         device_id=screenshot.device_id,
-#         category=screenshot.category,
-#         app_name=screenshot.app_name,
-#         screen_time=screenshot.screen_time,
-#         image_path=image_url
-#     )
+app.openapi = custom_openapi
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="debug")
+    uvicorn.run(app, host="0.0.0.0", port=7999)
