@@ -6,3 +6,4 @@ pydantic
 passlib[bcrypt]
 pydantic[email]
 PyJWT
+python-dotenv

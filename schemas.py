@@ -117,6 +117,6 @@ class ErrorResponse(BaseModel):
 
 class SuccessResponse(BaseModel):
     status: str = Field("success")
-    data: dict
+    data: object
 
     model_config = ConfigDict(from_attributes=True)

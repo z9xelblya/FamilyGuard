@@ -30,7 +30,7 @@ class Device(Base):
 class TetheringCode(Base):
     __tablename__ = 'tethering_code'
 
-    id = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True,autoincrement=True)
     code = Column(String, unique=True)
     user_id = Column(String, ForeignKey('users.user_id'))
     createdAt = Column(DateTime(timezone=True), server_default=func.now())

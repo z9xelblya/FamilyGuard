@@ -16,13 +16,18 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jwt import ExpiredSignatureError
 from passlib.context import CryptContext
+from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR, HTTP_201_CREATED
+from dotenv import load_dotenv
 
 from database import init_db, get_db, Session
 from models import *
 from schemas import *
+
+load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,9 +36,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-very-secret-key")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 1
+ACCESS_TOKEN_EXPIRE_HOURS = 10
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -96,7 +101,7 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
             "code": 401,
             "message": "Invalid credentials"
         })
-    now = datetime.utcnow()
+    now = datetime.now()
     expire = now + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     token = jwt.encode({
         "sub": user.user_id,
@@ -114,15 +119,19 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     )
     return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
 
-def verify_token(creds: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
     try:
-        payload = jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or missing token")
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid or missing token: " + str(e))
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token payload")
     return user_id
+
 
 def code_generator() -> str:
     chars = string.ascii_uppercase + string.digits
@@ -130,11 +139,38 @@ def code_generator() -> str:
 
 @app.post("/api/v1/devices", status_code=201)
 async def add_device(payload: DeviceCreate, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
-    device = Device(user_id=user_id, **payload.dict())
+    now = datetime.now(timezone.utc)
+    obj = db.query(TetheringCode).filter(
+        and_(
+            TetheringCode.code==payload.tetheringCode,
+            TetheringCode.used == False,
+            TetheringCode.expiredAt > now
+        )
+    ).first()
+    if (obj is None) or (obj.user_id != user_id):
+        raise HTTPException(status_code=400, detail="Invalid tethering code")
+    obj.used = True
+    db.add(obj)
+
+    device = Device(
+        device_id=str(uuid.uuid4()),
+        user_id=user_id,
+        name=payload.name,
+        model=payload.model,
+        osVersion=payload.osVersion,
+        isBlocked=False
+    )
     db.add(device)
     db.commit()
     db.refresh(device)
-    return {"status": "success", "data": DeviceResponse.from_orm(device).dict()}
+    data = DeviceResponse(
+        deviceId=device.device_id,
+        name=device.name,
+        model=device.model,
+        osVersion=device.osVersion,
+        tetheringAt=device.tetheredAt.isoformat()
+    )
+    return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
 
 @app.post("/api/v1/tethering-code", status_code=201)
 async def tethering_code(user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
@@ -170,13 +206,50 @@ def custom_openapi():
         "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
     }
     for path, ops in schema["paths"].items():
-        if path in ("/api/v1/devices", "/api/v1/tethering-code"):
+        if path in ("/api/v1/devices", "/api/v1/tethering-code", "/api/v1/devices/{device_id}/block", "/api/v1/devices/{device_id}/unblock"):
             for op in ops.values():
                 op.setdefault("security", []).append({"BearerAuth": []})
     app.openapi_schema = schema
     return schema
 
+@app.get("/api/v1/devices", status_code=201)
+async def devices(user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    all_devices = db.query(Device).filter(Device.user_id == user_id).all()
+    list_devices = []
+    for device in all_devices:
+        data = DeviceResponse(
+            deviceId=device.device_id,
+            name=device.name,
+            model=device.model,
+            osVersion=device.osVersion,
+            tetheringAt=device.tetheredAt.isoformat()
+        )
+        list_devices.append(data.dict())
+    return JSONResponse(status_code=200, content=SuccessResponse(data=list_devices).model_dump())
+
+@app.post("/api/v1/devices/{device_id}/block", status_code=201)
+async def block_device(device_id: str, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    device = db.query(Device).filter(Device.user_id == user_id).filter(Device.device_id == device_id).first()
+    device.isBlocked = True
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    if device is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return JSONResponse(status_code=200, content=SuccessResponse(data={"status": "success", "msg": "Device blocked"}).model_dump())
+
+@app.post("/api/v1/devices/{device_id}/unblock", status_code=201)
+async def unblock_device(device_id: str, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    device = db.query(Device).filter(Device.user_id == user_id).filter(Device.device_id == device_id).first()
+    device.isBlocked = False
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    if device is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return JSONResponse(status_code=200, content=SuccessResponse(data={"status": "success", "msg": "Device unblocked"}).model_dump())
+
 app.openapi = custom_openapi
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7999)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
