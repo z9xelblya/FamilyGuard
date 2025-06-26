@@ -30,20 +30,29 @@ class Device(Base):
 class TetheringCode(Base):
     __tablename__ = 'tethering_code'
 
-    id = Column(Integer, primary_key=True,autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     code = Column(String, unique=True)
     user_id = Column(String, ForeignKey('users.user_id'))
     createdAt = Column(DateTime(timezone=True), server_default=func.now())
     expiredAt = Column(DateTime(timezone=True))
     used = Column(Boolean)
 
-# class Screenshot(Base):
-#     __tablename__ = 'screenshots'
-#
-#     id = Column(Integer, primary_key=True)
-#     user_id = Column(Integer, ForeignKey('user.user_id'), nullable=False, index=True)
-#     device_id = Column(String)
-#     category = Column(String)
-#     app_name = Column(String)
-#     screen_time = Column(Integer)
-#     image_path = Column(String)
+class Category(Base):
+    __tablename__ = 'categories'
+    id = Column(String, primary_key=True)
+    name = Column(String)
+    label = Column(String)
+    description = Column(String)
+    restricted = Column(Boolean)
+
+
+class Screenshot(Base):
+    __tablename__ = 'screenshots'
+
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey('users.user_id'))
+    image = Column(String)
+    category = Column(String)
+    transaction_id = Column(String)
+    device_id = Column(String, ForeignKey('devices.device_id'))
+    createdAt = Column(DateTime(timezone=True), server_default=func.now())

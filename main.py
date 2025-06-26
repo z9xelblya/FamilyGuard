@@ -29,10 +29,12 @@ from schemas import *
 
 load_dotenv()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
     yield
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -48,6 +50,7 @@ app.mount("/uploads", StaticFiles(directory=uploads_directory))
 
 bearer_scheme = HTTPBearer()
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = []
@@ -61,6 +64,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         "message": "Invalid input",
         "errors": errors,
     })
+
 
 @app.post("/api/v1/register")
 async def register(payload: UserCreate, db: Session = Depends(get_db)):
@@ -91,6 +95,7 @@ async def register(payload: UserCreate, db: Session = Depends(get_db)):
         createdAt=user.createdAt.isoformat()
     )
     return JSONResponse(status_code=201, content=SuccessResponse(data=resp.dict()).model_dump())
+
 
 @app.post("/api/v1/login")
 async def login(payload: LoginRequest, db: Session = Depends(get_db)):
@@ -137,12 +142,13 @@ def code_generator() -> str:
     chars = string.ascii_uppercase + string.digits
     return "".join(random.choice(chars) for _ in range(5))
 
+
 @app.post("/api/v1/devices", status_code=201)
 async def add_device(payload: DeviceCreate, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
     now = datetime.now(timezone.utc)
     obj = db.query(TetheringCode).filter(
         and_(
-            TetheringCode.code==payload.tetheringCode,
+            TetheringCode.code == payload.tetheringCode,
             TetheringCode.used == False,
             TetheringCode.expiredAt > now
         )
@@ -172,6 +178,7 @@ async def add_device(payload: DeviceCreate, user_id: str = Depends(verify_token)
     )
     return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
 
+
 @app.post("/api/v1/tethering-code", status_code=201)
 async def tethering_code(user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
     now = datetime.utcnow()
@@ -193,6 +200,7 @@ async def tethering_code(user_id: str = Depends(verify_token), db: Session = Dep
     expires_str = expires_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
     return {"status": "success", "data": {"code": code, "expiresAt": expires_str, "validitySeconds": 600}}
 
+
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -206,11 +214,14 @@ def custom_openapi():
         "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
     }
     for path, ops in schema["paths"].items():
-        if path in ("/api/v1/devices", "/api/v1/tethering-code", "/api/v1/devices/{device_id}/block", "/api/v1/devices/{device_id}/unblock"):
+        if path in ("/api/v1/devices", "/api/v1/tethering-code", "/api/v1/devices/{device_id}/block",
+                    "/api/v1/devices/{device_id}/unblock", "/api/v1/categories", "/api/v1/categories/{category_id}",
+                    "/api/v1/settings/screenshots"):
             for op in ops.values():
                 op.setdefault("security", []).append({"BearerAuth": []})
     app.openapi_schema = schema
     return schema
+
 
 @app.get("/api/v1/devices", status_code=201)
 async def devices(user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
@@ -227,6 +238,7 @@ async def devices(user_id: str = Depends(verify_token), db: Session = Depends(ge
         list_devices.append(data.dict())
     return JSONResponse(status_code=200, content=SuccessResponse(data=list_devices).model_dump())
 
+
 @app.post("/api/v1/devices/{device_id}/block", status_code=201)
 async def block_device(device_id: str, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
     device = db.query(Device).filter(Device.user_id == user_id).filter(Device.device_id == device_id).first()
@@ -236,7 +248,9 @@ async def block_device(device_id: str, user_id: str = Depends(verify_token), db:
     db.refresh(device)
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
-    return JSONResponse(status_code=200, content=SuccessResponse(data={"status": "success", "msg": "Device blocked"}).model_dump())
+    return JSONResponse(status_code=200,
+                        content=SuccessResponse(data={"status": "success", "msg": "Device blocked"}).model_dump())
+
 
 @app.post("/api/v1/devices/{device_id}/unblock", status_code=201)
 async def unblock_device(device_id: str, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
@@ -247,7 +261,97 @@ async def unblock_device(device_id: str, user_id: str = Depends(verify_token), d
     db.refresh(device)
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
-    return JSONResponse(status_code=200, content=SuccessResponse(data={"status": "success", "msg": "Device unblocked"}).model_dump())
+    return JSONResponse(status_code=200,
+                        content=SuccessResponse(data={"status": "success", "msg": "Device unblocked"}).model_dump())
+
+
+@app.post("/api/v1/categories", status_code=201)
+async def category_add(payload: CategoryCreate, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    category = Category(
+        id=str(uuid.uuid4()),
+        name=payload.name,
+        label=payload.label,
+        description=payload.description,
+        restricted=payload.restricted
+    )
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    data = CategoryResponse(
+        categoryId=category.id,
+        name=category.name,
+        label=category.label,
+        description=category.description,
+        restricted=category.restricted
+    )
+    return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
+
+
+@app.get("/api/v1/categories", status_code=201)
+async def categories(db: Session = Depends(get_db)):
+    all_categories = db.query(Category).all()
+    list_categories = []
+    for category in all_categories:
+        data = CategoryResponse(
+            categoryId=category.id,
+            name=category.name,
+            label=category.label,
+            description=category.description,
+            restricted=category.restricted
+        )
+        list_categories.append(data.dict())
+    return JSONResponse(status_code=200, content=SuccessResponse(data=list_categories).model_dump())
+
+
+@app.delete("/api/v1/categories/{category_id}", status_code=201)
+async def delete_category(categoryId: str, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    category = db.query(Category).filter(Category.id == categoryId).first()
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+    db.delete(category)
+    db.commit()
+    db.refresh(category)
+    return JSONResponse(status_code=200,
+                        content=SuccessResponse(data={"status": "success", "msg": "Category deleted"}).model_dump())
+
+
+@app.post("/api/v1/settings/screenshots", status_code=201)
+async def screenshots(category: str = Form(...),
+                      transaction_id: str = Form(...),
+                      device_id: str = Form(...), file: UploadFile = File(...), user_id: str = Depends(verify_token),
+                      db: Session = Depends(get_db)):
+    ext = ".jpg"
+    filename = f"{uuid.uuid4().hex}{ext}"
+    file_path = os.path.join(uploads_directory, filename)
+
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {e}")
+
+    screenshot = Screenshot(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        image=file_path,
+        category=category,
+        transaction_id=transaction_id,
+        device_id=device_id,
+    )
+    db.add(screenshot)
+    db.commit()
+    db.refresh(screenshot)
+
+    data = ScreenshotResponse(
+        id=screenshot.id,
+        image=file_path,
+        category=screenshot.category,
+        transaction_id=screenshot.transaction_id,
+        device_id=screenshot.device_id
+    )
+    return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
+
 
 app.openapi = custom_openapi
 

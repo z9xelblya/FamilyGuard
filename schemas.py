@@ -56,22 +56,19 @@ class LoginData(BaseModel):
 
 
 
-# class ScreenshotBase(BaseModel):
-#     device_id: int
-#     category: str
-#     app_name: str
-#     screen_time: int
-#
-#
-# class ScreenshotCreate(ScreenshotBase):
-#     user_id: int
-#
-#
-# class ScreenshotResponse(ScreenshotBase):
-#     id: int
-#     image_path: str
-#
-#     model_config = ConfigDict(from_attributes=True)
+class ScreenshotBase(BaseModel):
+    category: str
+    transaction_id: str
+    device_id: str
+
+class ScreenshotCreate(ScreenshotBase):
+    pass
+
+
+class ScreenshotResponse(ScreenshotBase):
+    id: str
+    image: str
+    model_config = ConfigDict(from_attributes=True)
 
 class DeviceBase(BaseModel):
     name: str
@@ -96,6 +93,25 @@ class TetherResponse(BaseModel):
     code: str
     expiredAt: str
     validitySeconds: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CategoryBase(BaseModel):
+    name: str
+    label: str
+    description: str
+    restricted: bool
+
+
+class CategoryCreate(CategoryBase):
+    pass
+
+class CategoryResponse(BaseModel):
+    categoryId: str
+    name: str
+    label: str
+    description: str
+    restricted: bool
 
     model_config = ConfigDict(from_attributes=True)
 
