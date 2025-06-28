@@ -221,8 +221,8 @@ def custom_openapi():
                 op.setdefault("security", []).append({"BearerAuth": []})
     app.openapi_schema = schema
     return schema
-
-
+# awdw
+#
 @app.get("/api/v1/devices", status_code=201)
 async def devices(user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
     all_devices = db.query(Device).filter(Device.user_id == user_id).all()
