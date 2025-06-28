@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, root_validator, model_validator, Field, ConfigDict
 
@@ -115,6 +115,46 @@ class CategoryResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ScheduleItem(BaseModel):
+    start: str
+    end: str
+
+class ScreentimeBase(BaseModel):
+    limit: int
+    schedule: ScheduleItem
+
+class ScreentimeCreate(ScreentimeBase):
+    deviceId: str
+
+class ScreentimeResponse(ScreentimeBase):
+    screentimeId: str
+    model_config = ConfigDict(from_attributes=True)
+
+class ScreentimeUpdate(BaseModel):
+    limit: Optional[int]=None
+    schedule: Optional[ScheduleItem]=None
+    deviceId: Optional[str]=None
+
+class LogScreentimeBase(BaseModel):
+    screenTime: int
+    timestamp: str
+    screentime_id: str
+    activityType: str
+    device_id: str
+
+class LogScreentimeCreate(LogScreentimeBase):
+    pass
+
+class LogScreentimeResponse(BaseModel):
+    usedTime: int
+    remaining: int
+    limit: int
+    schedule: ScheduleItem
+    lastUpdate: str
+    model_config = ConfigDict(from_attributes=True)
+
+# class LogScreentime
+
 class ErrorItem(BaseModel):
     field: str
     message: str
@@ -134,5 +174,11 @@ class ErrorResponse(BaseModel):
 class SuccessResponse(BaseModel):
     status: str = Field("success")
     data: object
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SuccessResponseMsg(BaseModel):
+    status: str = Field("success")
+    msg: str
 
     model_config = ConfigDict(from_attributes=True)

@@ -216,7 +216,7 @@ def custom_openapi():
     for path, ops in schema["paths"].items():
         if path in ("/api/v1/devices", "/api/v1/tethering-code", "/api/v1/devices/{device_id}/block",
                     "/api/v1/devices/{device_id}/unblock", "/api/v1/categories", "/api/v1/categories/{category_id}",
-                    "/api/v1/settings/screenshots"):
+                    "/api/v1/settings/screenshots", "/api/v1/settings/screen-time", "/api/v1/settings/screen-time/{screentimeId}", "/api/v1/settings/screen-time/log"):
             for op in ops.values():
                 op.setdefault("security", []).append({"BearerAuth": []})
     app.openapi_schema = schema
@@ -352,6 +352,106 @@ async def screenshots(category: str = Form(...),
     )
     return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
 
+@app.post("/api/v1/settings/screen-time", status_code=201)
+async def screen_time(payload: ScreentimeCreate, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    check = db.query(Device).filter(Device.user_id == user_id, Device.device_id == payload.deviceId).first()
+    if check is None:
+        raise HTTPException(status_code=400, detail="Device not found")
+
+    screentime = Screentime(
+        id = str(uuid.uuid4()),
+        user_id=user_id,
+        deviceId = payload.deviceId,
+        limit = payload.limit,
+        scheduleStart=payload.schedule.start,
+        scheduleEnd=payload.schedule.end
+    )
+    db.add(screentime)
+    db.commit()
+    db.refresh(screentime)
+    data = ScreentimeResponse(
+        screentimeId=screentime.id,
+        limit=screentime.limit,
+        schedule=ScheduleItem(start=screentime.scheduleStart, end=screentime.scheduleEnd)
+    )
+    return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
+
+@app.put("/api/v1/settings/screen-time/{screentimeId}", status_code=201)
+async def screem_time_update(payload: ScreentimeUpdate, screentime_id: str, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    screentime = db.query(Screentime).filter(Screentime.id == screentime_id, Screentime.user_id == user_id).first()
+    if screentime is None:
+        raise HTTPException(status_code=400, detail="Screentime not found")
+    if payload.limit is not None:
+        screentime.limit = payload.limit
+    if payload.schedule.start is not None:
+        screentime.scheduleStart = payload.schedule.start
+    if payload.schedule.end is not None:
+        screentime.scheduleEnd = payload.schedule.end
+    db.add(screentime)
+    db.commit()
+    db.refresh(screentime)
+    return JSONResponse(status_code=200, content=SuccessResponseMsg(msg="Settings updated").model_dump())
+
+@app.get("/api/v1/settings/screen-time", status_code=201)
+async def get_screen_time(user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    all_screentimes = db.query(Screentime).filter(Screentime.user_id == user_id).all()
+    list_screentimes = []
+    for screen_time in all_screentimes:
+        data = ScreentimeResponse(
+            screentimeId=screen_time.id,
+            limit=screen_time.limit,
+            schedule=ScheduleItem(start=screen_time.scheduleStart, end=screen_time.scheduleEnd),
+        )
+        list_screentimes.append(data.dict())
+    return JSONResponse(status_code=200, content=SuccessResponse(data=list_screentimes).model_dump())
+
+@app.delete("/api/v1/settings/screen-time/{screentimeId}", status_code=204)
+async def del_screen_time(screentimeId: str, user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    screentime = db.query(Screentime).filter(Screentime.id == screentimeId, Screentime.user_id == user_id).first()
+    if screentime is None:
+        raise HTTPException(status_code=400, detail="Screentime not found")
+    db.delete(screentime)
+    db.commit()
+    return JSONResponse(status_code=200,
+                        content=SuccessResponse(data={"status": "success", "msg": "Screentime deleted"}).model_dump())
+
+@app.post("/api/v1/settings/screen-time/log", status_code=204)
+async def post_screen_time_log(payload: LogScreentimeCreate, user_id: str = Depends(verify_token), db=Depends(get_db)):
+    device = db.query(Device).filter(Device.user_id == user_id, Device.device_id == payload.device_id).first()
+    if device is None:
+        raise HTTPException(status_code=400, detail="Device not found")
+    screentime = db.query(Screentime).filter(Screentime.id == payload.screentime_id, Screentime.user_id == user_id).first()
+    if screentime is None:
+        raise HTTPException(status_code=400, detail="Screentime not found")
+    logScreentime = db.query(LogScreentime).filter(LogScreentime.screentime_id == payload.screentime_id, LogScreentime.user_id == user_id).all()
+    usedTime = sum([logSt.screenTime for logSt in logScreentime]) + payload.screenTime
+    remainingTime = screentime.limit - usedTime
+    if remainingTime <= 0:
+        raise HTTPException(status_code=400, detail="Remaining time exceeds limit")
+
+    logStDb = LogScreentime(
+        id = str(uuid.uuid4()),
+        user_id = user_id,
+        screenTime = payload.screenTime,
+        timestamp = payload.timestamp,
+        device_id = device.device_id,
+        screentime_id = screentime.id,
+        activityType = payload.activityType,
+    )
+
+    db.add(logStDb)
+    db.commit()
+    db.refresh(logStDb)
+
+    logScreentimeResponse = LogScreentimeResponse(
+        usedTime=usedTime,
+        remaining=remainingTime,
+        limit=screentime.limit,
+        schedule=ScheduleItem(start=screentime.scheduleStart, end=screentime.scheduleEnd),
+        lastUpdate=logScreentime[-1].timestamp
+    )
+
+    return JSONResponse(status_code=200, content=SuccessResponse(data=logScreentimeResponse).model_dump())
 
 app.openapi = custom_openapi
 

@@ -56,3 +56,22 @@ class Screenshot(Base):
     transaction_id = Column(String)
     device_id = Column(String, ForeignKey('devices.device_id'))
     createdAt = Column(DateTime(timezone=True), server_default=func.now())
+
+class Screentime(Base):
+    __tablename__ = 'screentime'
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey('users.user_id'))
+    deviceId = Column(String, ForeignKey('devices.device_id'))
+    limit = Column(Integer)
+    scheduleStart = Column(String)
+    scheduleEnd = Column(String)
+
+class LogScreentime(Base):
+    __tablename__ = 'log_screentime'
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey('users.user_id'))
+    screenTime = Column(Integer)
+    timestamp = Column(String)
+    device_id = Column(String, ForeignKey('devices.device_id'))
+    screentime_id = Column(String, ForeignKey('screentime.id'))
+    activityType = Column(String)
