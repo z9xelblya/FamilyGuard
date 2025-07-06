@@ -3,74 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FamilyGuard: AI Powered Parental Control</title>
+    <title>FamilyGuard: Parental Control</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
         :root {
-            /* Light Theme */
             --primary: #4361ee;
             --primary-light: #5a75f0;
             --primary-dark: #2d4bc4;
             --secondary: #3f37c9;
             --success: #4cc9f0;
             --danger: #f72585;
-            --warning: #f8961e;
+            --warning: #ff9e00;
+            --info: #00b4d8;
             --light: #f8f9fa;
             --light-gray: #f0f2f5;
             --dark: #212529;
             --gray: #6c757d;
-            --gray-light: #adb5bd;
             --border: #dee2e6;
-            --border-light: #e9ecef;
             --shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
-            --shadow-hover: 0 5px 20px rgba(0, 0, 0, 0.12);
             --radius: 10px;
             --radius-sm: 6px;
             --transition: all 0.3s ease;
 
-            /* Backgrounds */
             --bg-body: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%);
             --bg-card: white;
             --bg-header: white;
-            --bg-footer: white;
-            --bg-modal: white;
-            --bg-input: white;
-
-            /* Text */
             --text-primary: #212529;
             --text-secondary: #6c757d;
-            --text-inverse: #f8f9fa;
-
-            /* Dark theme variables */
-            --dark-bg-body: linear-gradient(135deg, #0a0f2b 0%, #1a1f3b 100%);
-            --dark-bg-card: #1e2237;
-            --dark-bg-header: #1a1e32;
-            --dark-bg-footer: #1a1e32;
-            --dark-bg-modal: #22263d;
-            --dark-bg-input: #252a42;
-            --dark-text-primary: #e0e6ff;
-            --dark-text-secondary: #a0a8cc;
-            --dark-border: #2d3250;
-            --dark-border-light: #363b5c;
-            --dark-shadow: 0 2px 15px rgba(0, 0, 0, 0.3);
-            --dark-shadow-hover: 0 5px 20px rgba(0, 0, 0, 0.4);
-        }
-
-        /* Dark Theme */
-        body.dark-theme {
-            --bg-body: var(--dark-bg-body);
-            --bg-card: var(--dark-bg-card);
-            --bg-header: var(--dark-bg-header);
-            --bg-footer: var(--dark-bg-footer);
-            --bg-modal: var(--dark-bg-modal);
-            --bg-input:极 var(--dark-bg-input);
-            --text-primary: var(--dark-text-primary);
-            --text-secondary: var(--dark-text-secondary);
-            --border: var(--dark-border);
-            --border-light: var(--dark-border-light);
-            --shadow: var(--dark-shadow);
-            --shadow-hover: var(--dark-shadow-hover);
         }
 
         * {
@@ -78,7 +40,6 @@
             padding: 0;
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
 
         body {
@@ -148,20 +109,10 @@
             color: var(--primary);
         }
 
-        nav a i {
-            font-size: 1.1rem;
-        }
-
         .user-menu {
             display: flex;
             align-items: center;
             gap: 15px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
 
         .user-avatar {
@@ -177,8 +128,12 @@
             font-size: 0.9rem;
         }
 
+        .auth-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
         .auth-buttons button {
-            margin-left: 10px;
             padding: 8px 16px;
             border-radius: var(--radius-sm);
             cursor: pointer;
@@ -197,14 +152,12 @@
         }
 
         .btn-register {
-            background: var(--primary);
-            border: 1px solid var(--primary);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             color: white;
         }
 
         .btn-register:hover {
-            background: var(--primary-dark);
-            border-color: var(--primary-dark);
+            background: linear-gradient(135deg, var(--primary-dark) 0%, #3023ae 100%);
         }
 
         .page {
@@ -238,12 +191,7 @@
             padding: 25px;
             margin-bottom: 30px;
             transition: var(--transition);
-            border: 1px solid var(--border-light);
-        }
-
-        .card:hover {
-            box-shadow: var(--shadow-hover);
-            transform: translateY(-3px);
+            border: 1px solid var(--border);
         }
 
         .card-header {
@@ -252,7 +200,7 @@
             align-items: center;
             margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--border);
         }
 
         .form-group {
@@ -273,8 +221,6 @@
             border-radius: var(--radius-sm);
             font-size: 1rem;
             transition: var(--transition);
-            background-color: var(--bg-input);
-            color: var(--text-primary);
         }
 
         .form-control:focus {
@@ -316,17 +262,9 @@
             color: white;
         }
 
-        .btn-success:hover {
-            background: #3ab3d8;
-        }
-
         .btn-danger {
             background: var(--danger);
             color: white;
-        }
-
-        .btn-danger:hover {
-            background: #e0136f;
         }
 
         .btn-warning {
@@ -334,8 +272,9 @@
             color: white;
         }
 
-        .btn-warning:hover {
-            background: #f08c00;
+        .btn-info {
+            background: var(--info);
+            color: white;
         }
 
         .btn-outline {
@@ -346,17 +285,16 @@
 
         .btn-outline:hover {
             background: rgba(67, 97, 238, 0.05);
-            transform: translateY(-2px);
-        }
-
-        .btn-block {
-            display: block;
-            width: 100%;
         }
 
         .btn-sm {
             padding: 8px 15px;
             font-size: 0.9rem;
+        }
+
+        .btn-block {
+            display: block;
+            width: 100%;
         }
 
         .devices-grid {
@@ -366,20 +304,11 @@
         }
 
         .device-card {
-            border: 1px solid var(--border-light);
+            border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             padding: 20px;
             position: relative;
             transition: var(--transition);
-            display: flex;
-            flex-direction: column;
-            background: var(--bg-card);
-        }
-
-        .device-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-hover);
-            border-color: var(--primary-light);
         }
 
         .device-name {
@@ -389,7 +318,6 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            color: var(--text-primary);
         }
 
         .device-name i {
@@ -401,9 +329,6 @@
             color: var(--text-secondary);
             margin-bottom: 10px;
             font-size: 0.9rem;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
         }
 
         .device-status {
@@ -420,138 +345,15 @@
             background: #dc3545;
         }
 
+        .device-status.blocked {
+            background: #ffc107;
+        }
+
         .device-actions {
-            margin-top: auto;
+            margin-top: 15px;
             display: flex;
             gap: 10px;
-        }
-
-        .screen-time-progress {
-            margin: 15px 0;
-            height: 8px;
-            background: var(--border-light);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .screen-time-bar {
-            height: 100%;
-            background: var(--primary);
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
-
-        .screen-time-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        .categories-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-        }
-
-        .category-card {
-            border: 1px solid var(--border-light);
-            border-radius: var(--radius-sm);
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: var(--transition);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            background: var(--bg-card);
-        }
-
-        .category-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-3px);
-        }
-
-        .category-card.selected {
-            background: rgba(67, 97, 238, 0.1);
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
-        }
-
-        .category-remove {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(247, 37, 133, 0.1);
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--danger);
-            font-size: 0.8rem;
-            opacity: 0;
-            transition: var(--transition);
-            cursor: pointer;
-        }
-
-        .category-card:hover .category-remove {
-            opacity: 1;
-        }
-
-        .category-icon {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            color: var(--primary);
-        }
-
-        .screenshots-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-        }
-
-        .screenshot-item {
-            border-radius: var(--radius-sm);
-            overflow: hidden;
-            box-shadow: var(--shadow);
-            position: relative;
-            transition: var(--transition);
-            cursor: pointer;
-            background: var(--bg-card);
-        }
-
-        .screenshot-item:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-hover);
-        }
-
-        .screenshot-item img {
-            width: 100%;
-            height: 180px;
-            object-fit: cover;
-            display: block;
-        }
-
-        .screenshot-info {
-            padding: 12px;
-            background: var(--bg-card);
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .screenshot-date {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-
-        .screenshot-actions {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 5px;
+            flex-wrap: wrap;
         }
 
         .qr-code-container {
@@ -567,13 +369,14 @@
         .qr-code {
             width: 200px;
             height: 200px;
-            background: var(--border-light);
+            background: #f0f2f5;
             margin: 0 auto 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 5rem;
             border-radius: var(--radius-sm);
+            color: var(--primary);
         }
 
         .binding-code {
@@ -582,7 +385,7 @@
             font-weight: 700;
             margin: 20px 0;
             color: var(--primary);
-            background: var(--border-light);
+            background: #f0f2f5;
             padding: 10px;
             border-radius: var(--radius-sm);
         }
@@ -603,9 +406,8 @@
             font-weight: 500;
             position: relative;
             border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-            background: var(--border-light);
+            background: #f0f2f5;
             transition: var(--transition);
-            color: var(--text-primary);
         }
 
         .tab:hover {
@@ -631,14 +433,13 @@
             padding: 15px 20px;
             border-radius: var(--radius-sm);
             margin-bottom: 20px;
-            display: none;
             font-weight: 500;
             position: fixed;
             top: 20px;
             right: 20px;
             max-width: 400px;
             z-index: 1000;
-            box-shadow: var(--shadow-hover);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
             animation: slideIn 0.3s ease-out;
             display: flex;
             align-items: center;
@@ -652,19 +453,21 @@
         .notification.success {
             background: rgba(40, 167, 69, 0.95);
             color: white;
-            border-left: 4px solid #28a745;
         }
 
         .notification.error {
             background: rgba(220, 53, 69, 0.95);
             color: white;
-            border-left: 4px solid #dc3545;
         }
 
         .notification.warning {
-            background: rgba(230, 0, 255, 0.95);
+            background: rgba(255, 158, 0, 0.95);
             color: white;
-            border-left: 4px solid var(--warning);
+        }
+
+        .notification.info {
+            background: rgba(0, 180, 216, 0.95);
+            color: white;
         }
 
         @keyframes slideIn {
@@ -676,57 +479,6 @@
                 transform: translateX(0);
                 opacity: 1;
             }
-        }
-
-        .stats-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: var(--bg-card);
-            border-radius: var(--radius-sm);
-            padding: 20px;
-            box-shadow: var(--shadow);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            transition: var(--transition);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-
-        .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(67, 97, 238, 0.1);
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-        }
-
-        .stat-content {
-            flex: 1;
-        }
-
-        .stat-value {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--primary);
-            line-height: 1.2;
-        }
-
-        .stat-label {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
         }
 
         .empty-state {
@@ -762,7 +514,7 @@
         }
 
         .modal-content {
-            background-color: var(--bg-modal);
+            background-color: var(--bg-card);
             border-radius: var(--radius);
             box-shadow: 0 5px 30px rgba(0,0,0,0.2);
             width: 90%;
@@ -779,7 +531,7 @@
 
         .modal-header {
             padding: 20px;
-            border-bottom: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -810,367 +562,244 @@
 
         .modal-footer {
             padding: 20px;
-            border-top: 1px solid var(--border-light);
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: flex-end;
             gap: 10px;
         }
 
         footer {
-            background: var(--bg-footer);
+            background: var(--bg-card);
             padding: 30px 0;
             text-align: center;
-            margin-top: 50px;
+            margin-top: auto;
             border-top: 1px solid var(--border);
             color: var(--text-secondary);
         }
 
-        .footer-links {
-            display: flex;
-            justify-content: center;
+        /* New styles for expanded features */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
-            margin-top: 15px;
-        }
-
-        .footer-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: var(--transition);
-        }
-
-        .footer-links a:hover {
-            color: var(--primary);
-        }
-
-        .chart-container {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            padding: 25px;
-            margin-bottom: 30px;
-        }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .chart-canvas {
-            height: 300px;
-        }
-
-        .usage-table {
-            width: 100%;
-            border-collapse: collapse;
             margin-top: 20px;
         }
 
-        .usage-table th, .usage-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-light);
+        .stat-card {
+            padding: 20px;
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 10px 0;
             color: var(--text-primary);
         }
 
-        .usage-table th {
-            background-color: var(--border-light);
-            font-weight: 600;
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
         }
 
-        .usage-table tr:hover {
-            background-color: rgba(67, 97, 238, 0.05);
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-
-        .status-badge.allowed {
-            background-color: rgba(40, 167, 69, 0.15);
-            color: #28a745;
-        }
-
-        .status-badge.blocked {
-            background-color: rgba(220, 53, 69, 0.15);
-            color: #dc3545;
-        }
-
-        .status-badge.limited {
-            background-color: rgba(255, 193, 7, 0.15);
-            color: #ffc107;
-        }
-
-        .security-event {
-            display: flex;
+        .schedule-item {
             padding: 15px;
+            border: 1px solid var(--border);
             border-radius: var(--radius-sm);
-            background: var(--bg-card);
-            margin-bottom: 15px;
-            box-shadow: var(--shadow);
-            transition: var(--transition);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .security-event:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-hover);
+        .schedule-details {
+            flex: 1;
         }
 
-        .event-icon {
+        .schedule-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .profile-card {
+            grid-column: 1 / -1;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .settings-section {
+            background: var(--light-gray);
+            padding: 20px;
+            border-radius: var(--radius-sm);
+        }
+
+        .notification-item {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+
+        .notification-icon {
             width: 40px;
             height: 40px;
             border-radius: 50%;
+            background: var(--light-gray);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
-            margin-right: 15px;
             flex-shrink: 0;
         }
 
-        .event-icon.security {
-            background: rgba(67, 97, 238, 0.1);
-            color: var(--primary);
-        }
-
-        .event-icon.time {
-            background: rgba(247, 37, 133, 0.1);
-            color: var(--danger);
-        }
-
-        .event-icon.location {
-            background: rgba(40, 167, 69, 0.1);
-            color: #28a745;
-        }
-
-        .event-content {
+        .notification-content {
             flex: 1;
         }
 
-        .event-title {
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: var(--text-primary);
-        }
-
-        .event-details {
-            font-size: 0.9rem;
+        .notification-time {
             color: var(--text-secondary);
-            margin-bottom: 5px;
-        }
-
-        .event-device {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-
-        .filters {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .filter-group {
-            min-width: 200px;
-            flex: 1;
-        }
-
-        .filter-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-            color: var(--text-primary);
-        }
-
-        .chart-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .app-icon {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            background: var(--border-light);
-            border-radius: 5px;
-            margin-right: 10px;
-            text-align: center;
-            line-height: 24px;
-            font-size: 12px;
-        }
-
-        .usage-table th {
-            cursor: pointer;
-        }
-
-        .usage-table th:hover {
-            background-color: rgba(67, 97, 238, 0.1);
-        }
-
-        .sort-indicator {
-            margin-left: 5px;
-            font-size: 0.8em;
-        }
-
-        .progress-container {
-            height: 8px;
-            background: var(--border-light);
-            border-radius: 4px;
-            overflow: hidden;
+            font-size: 0.85rem;
             margin-top: 5px;
         }
 
-        .progress-bar {
-            height: 100%;
-            background: var(--primary);
-            border-radius: 4px;
+        .chart-container {
+            height: 300px;
+            margin-top: 20px;
+            position: relative;
         }
 
-        .categories-bar {
-            display: flex;
+        .chart-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        .schedule-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 15px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-            position: relative;
         }
 
-        .monitoring-category-card {
-            border: 1px solid var(--border-light);
-            border-radius: var(--radius-sm);
-            padding: 18px 25px;
-            cursor: pointer;
-            transition: var(--transition);
+        .schedule-form-grid .form-group:last-child {
+            grid-column: 1 / -1;
+        }
+
+        .schedule-form-grid .btn {
+            grid-column: 1 / -1;
+        }
+
+        .stats-controls {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            position: relative;
-            min-width: 120px;
-            background: var(--bg-card);
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
-        .monitoring-category-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-3px);
+        .chart-type-selector {
+            display: flex;
+            gap: 5px;
+            margin-left: auto;
         }
 
-        .monitoring-category-card.selected {
-            background: rgba(67, 97, 238, 0.1);
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+        .chart-type-selector .btn {
+            padding: 8px 12px;
         }
 
-        .category-icon {
-            font-size: 2.8rem;
-            margin-bottom: 12px;
-            color: var(--primary);
-        }
-
-        .time-period-tabs {
+        .days-selector {
             display: flex;
             gap: 10px;
-            margin-bottom: 25px;
+            flex-wrap: wrap;
         }
 
-        .time-period-tab {
-            padding: 12px 24px;
-            background: var(--border-light);
-            border: 1px solid var(--border);
+        .days-selector label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            background: var(--light-gray);
             border-radius: var(--radius-sm);
             cursor: pointer;
-            transition: var(--transition);
-            color: var(--text-primary);
-            font-weight: 500;
         }
 
-        .time-period-tab:hover {
-            background: rgba(67, 97, 238, 0.1);
+        .days-selector input[type="checkbox"] {
+            margin: 0;
         }
 
-        .time-period-tab.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
+        .comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 30px;
         }
 
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
+        .comparison-chart {
+            height: 250px;
         }
 
-        .floating {
-            animation: float 3s ease-in-out infinite;
-        }
-
-        /* Theme Toggle */
-        .theme-toggle {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 30px;
-            margin-right: 15px;
-        }
-
-        .theme-toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .theme-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: var(--border);
-            transition: .4s;
-            border-radius: 34px;
-        }
-
-        .theme-slider:before {
-            position: absolute;
-            content: "";
-            height: 22px;
-            width: 22px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-            display: flex;
+        .trend-indicator {
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: #f8c310;
+            gap: 5px;
+            font-weight: 600;
+            margin-left: 10px;
         }
 
-        input:checked + .theme-slider {
-            background-color: var(--primary);
+        .trend-up {
+            color: var(--success);
         }
 
-        input:checked + .theme-slider:before {
-            transform: translateX(30px);
-            background-color: white;
+        .trend-down {
+            color: var(--danger);
         }
 
-        .theme-label {
+        .trend-neutral {
+            color: var(--warning);
+        }
+
+        .usage-comparison {
             display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-primary);
+            justify-content: space-between;
+            margin-top: 10px;
+            padding: 15px;
+            background: var(--light-gray);
+            border-radius: var(--radius-sm);
         }
 
-        /* Responsive adjustments */
+        .comparison-item {
+            text-align: center;
+        }
+
+        .comparison-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .comparison-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
         @media (max-width: 768px) {
             .header-content {
                 flex-direction: column;
@@ -1198,860 +827,908 @@
                 grid-template-columns: 1fr;
             }
 
-            .stats-container {
+            .profile-grid,
+            .settings-grid {
                 grid-template-columns: 1fr;
             }
 
-            .tabs {
-                flex-wrap: wrap;
-            }
-
-            .tab {
-                flex: 1;
-                text-align: center;
-            }
-
-            .chart-grid {
+            .schedule-form-grid {
                 grid-template-columns: 1fr;
             }
 
-            .filters {
+            .stats-controls {
                 flex-direction: column;
+                align-items: stretch;
             }
 
-            .theme-toggle {
-                margin: 10px auto;
+            .chart-type-selector {
+                margin-left: 0;
+                justify-content: center;
             }
-        }
 
-        /* FIX: Added class for persistent buttons */
-        .persistent-buttons {
-            position: relative;
-            z-index: 10;
-        }
-
-        /* Category Manager Styles */
-        .category-manager-modal {
-            max-width: 600px;
-        }
-
-        .category-list-manager {
-            max-height: 400px;
-            overflow-y: auto;
-            margin-top: 15px;
-            padding-right: 10px;
-        }
-
-        .category-item-manager {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 15px;
-            background: var(--border-light);
-            border-radius: var(--radius-sm);
-            margin-bottom: 10px;
-            transition: var(--transition);
-        }
-
-        .category-item-manager:hover {
-            background: rgba(67, 97, 238, 0.1);
-        }
-
-        .category-item-content {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .category-icon-manager {
-            font-size: 1.5rem;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            background: rgba(67, 97, 238, 0.1);
-        }
-
-        .category-blocked {
-            color: var(--danger);
-            font-weight: 600;
-            font-size: 0.85rem;
-            margin-left: 10px;
-        }
-
-        .category-time-limit {
-            font-size: 0.85rem;
-            color: var(--warning);
-            margin-top: 3px;
-        }
-
-        .category-controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .block-toggle {
-            position: relative;
-            width: 40px;
-            height: 20px;
-        }
-
-        .block-toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .block-toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-
-        .block-toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .block-toggle-slider {
-            background-color: var(--danger);
-        }
-
-        input:checked + .block-toggle-slider:before {
-            transform: translateX(20px);
-        }
-
-        .time-limit-input {
-            width: 70px;
-            padding: 5px 8px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
-            background: var(--bg-input);
-            color: var(--text-primary);
-        }
-
-        .time-limit-label {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-right: 5px;
-        }
-
-        .time-limit-container {
-            display: flex;
-            align-items: center;
-            margin-top: 5px;
-        }
-
-        .category-item-blocked {
-            border-left: 4px solid var(--danger);
-        }
-
-        .category-blocked-icon {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: var(--danger);
-        }
-
-        .category-manager-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(67, 97, 238, 0.1);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--primary);
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .category-manager-btn:hover {
-            background: rgba(67, 97, 238, 0.2);
-            transform: rotate(45deg);
-        }
-
-        /* New styles for device creation */
-        .device-creation-success {
-            text-align: center;
-            padding: 30px;
-        }
-
-        .device-creation-success i {
-            font-size: 4rem;
-            color: var(--success);
-            margin-bottom: 20px;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-
-        .device-type-selector {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .device-type {
-            border: 2px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: var(--transition);
-            background: var(--bg-card);
-        }
-
-        .device-type:hover, .device-type.selected {
-            border-color: var(--primary);
-            background: rgba(67, 97, 238, 0.05);
-        }
-
-        .device-type i {
-            font-size: 2.5rem;
-            color: var(--primary);
-            margin-bottom: 10px;
+            .comparison-container {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-<header>
-    <div class="container">
-        <div class="header-content">
-            <div class="logo">
-                <i class="fas fa-shield-alt"></i>
-                <span>FamilyGuard</span>
-            </div>
-            <nav>
-                <ul>
-                    <li><a href="#" class="nav-link active" data-page="dashboard"><i class="fas fa-home"></i> Home</a></li>
-                    <li><a href="#" class="nav-link" data-page="devices"><i class="fas fa-mobile-alt"></i> Devices</a></li>
-                    <li><a href="#" class="nav-link" data-page="monitoring"><i class="fas fa-eye"></i> Monitoring</a></li>
-                    <li><a href="#" class="nav-link" data-page="statistic"><i class="fas fa-chart-bar"></i> Statistics</a></li>
-                    <li><a href="#" class="nav-link" data-page="settings"><i class="fas fa-cog"></i> Settings</a></li>
-                </ul>
-            </nav>
-            <div class="user-menu">
-                <label class="theme-label">
-                    <i class="fas fa-sun"></i>
-                    <div class="theme-toggle">
-                        <input type="checkbox" id="themeToggle">
-                        <span class="theme-slider"></span>
-                    </div>
-                    <i class="fas fa-moon"></i>
-                </label>
-                <div class="user-info" id="userInfo">
-                    <!-- Will fill in using javascript-->
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>FamilyGuard</span>
                 </div>
-                <div class="auth-buttons">
+                <nav id="mainNav" style="display: none;">
+                    <ul>
+                        <li><a href="#" class="nav-link" data-page="dashboard"><i class="fas fa-home"></i> Home</a></li>
+                        <li><a href="#" class="nav-link" data-page="devices"><i class="fas fa-mobile-alt"></i> Devices</a></li>
+                        <li><a href="#" class="nav-link" data-page="schedule"><i class="fas fa-calendar-alt"></i> Schedule</a></li>
+                        <li><a href="#" class="nav-link" data-page="stats"><i class="fas fa-chart-bar"></i> Stats</a></li>
+                        <li><a href="#" class="nav-link" data-page="profile"><i class="fas fa-user"></i> Profile</a></li>
+                        <li><a href="#" class="nav-link" data-page="settings"><i class="fas fa-cog"></i> Settings</a></li>
+                    </ul>
+                </nav>
+                <div class="user-menu" id="userMenu">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Notifications -->
+        <div id="notification" class="notification"></div>
+
+        <!-- Login Page -->
+        <div id="loginPage" class="page active">
+            <div class="card" style="max-width: 500px; margin: 40px auto;">
+                <h1 class="page-title" style="text-align: center;"><i class="fas fa-sign-in-alt"></i> Login</h1>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" class="form-control" placeholder="Enter your email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" class="form-control" placeholder="Enter your password" required>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 30px;">
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-sign-in-alt"></i> Login
+                        </button>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <p>Don't have an account? <a href="#" id="showRegister">Register</a></p>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Register Page -->
+        <div id="registerPage" class="page">
+            <div class="card" style="max-width: 500px; margin: 40px auto;">
+                <h1 class="page-title" style="text-align: center;"><i class="fas fa-user-plus"></i> Register</h1>
+
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" id="firstName" class="form-control" placeholder="Enter your first name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lastName">Last Name</label>
+                        <input type="text" id="lastName" class="form-control" placeholder="Enter your last name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" class="form-control" placeholder="Enter your email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="registerPassword">Password</label>
+                        <input type="password" id="registerPassword" class="form-control" placeholder="Create a password (min 6 characters)" minlength="6" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="timezone">Timezone</label>
+                        <select id="timezone" class="form-control" required>
+                            <option value="">Select your timezone</option>
+                            <option value="UTC-12">UTC-12:00</option>
+                            <option value="UTC-11">UTC-11:00</option>
+                            <option value="UTC-10">UTC-10:00</option>
+                            <option value="UTC-9">UTC-09:00</option>
+                            <option value="UTC-8">UTC-08:00</option>
+                            <option value="UTC-7">UTC-07:00</option>
+                            <option value="UTC-6">UTC-06:00</option>
+                            <option value="UTC-5">UTC-05:00</option>
+                            <option value="UTC-4">UTC-04:00</option>
+                            <option value="UTC-3">UTC-03:00</option>
+                            <option value="UTC-2">UTC-02:00</option>
+                            <option value="UTC-1">UTC-01:00</option>
+                            <option value="UTC">UTC±00:00</option>
+                            <option value="UTC+1">UTC+01:00</option>
+                            <option value="UTC+2">UTC+02:00</option>
+                            <option value="UTC+3">UTC+03:00</option>
+                            <option value="UTC+4">UTC+04:00</option>
+                            <option value="UTC+5">UTC+05:00</option>
+                            <option value="UTC+6">UTC+06:00</option>
+                            <option value="UTC+7">UTC+07:00</option>
+                            <option value="UTC+8">UTC+08:00</option>
+                            <option value="UTC+9">UTC+09:00</option>
+                            <option value="UTC+10">UTC+10:00</option>
+                            <option value="UTC+11">UTC+11:00</option>
+                            <option value="UTC+12">UTC+12:00</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Phone</label>
+                        <input type="tel" id="phone" class="form-control" placeholder="Enter your phone number">
+                    </div>
+
+                    <div class="form-group" style="margin-top: 30px;">
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-user-plus"></i> Create Account
+                        </button>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <p>Already have an account? <a href="#" id="showLogin">Login</a></p>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard Page -->
+        <div id="dashboardPage" class="page">
+            <h1 class="page-title"><i class="fas fa-home"></i> Control Dashboard</h1>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Linked Devices</h2>
+                    <button id="addDeviceBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Add Device</button>
+                </div>
+                <div class="devices-grid" id="devicesGrid">
+                    <!-- Devices will be added dynamically -->
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Recent Notifications</h2>
+                    <a href="#" id="viewAllNotifications" data-page="notifications">View All</a>
+                </div>
+                <div id="recentNotifications">
+                    <!-- Notifications will be added dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Devices Page -->
+        <div id="devicesPage" class="page">
+            <h1 class="page-title"><i class="fas fa-mobile-alt"></i> Devices Management</h1>
+
+            <div class="tab-container">
+                <div class="tabs">
+                    <div class="tab active" data-tab="bind-device">Tether Device</div>
+                    <div class="tab" data-tab="manage-devices">My Devices</div>
+                </div>
+
+                <div class="tab-content">
+                    <div id="bindDeviceTab" class="tab-pane active">
+                        <div class="card">
+                            <h2 style="margin-bottom: 20px; text-align: center;">Tether New Device</h2>
+
+                            <div class="qr-code-container">
+                                <div class="qr-code">📱</div>
+                                <p>Open the App on Your Child's Device and Scan the QR Code</p>
+                                <p style="margin: 20px 0;">Or Enter the Code Manually:</p>
+                                <div class="binding-code" id="bindingCode">5H8J9</div>
+                                <p>The Code Is Valid for 10 Minutes</p>
+                            </div>
+
+                            <div style="text-align: center; margin-top: 30px;">
+                                <button id="generateNewCodeBtn" class="btn btn-outline"><i class="fas fa-sync-alt"></i> Generate New Code</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="manageDevicesTab" class="tab-pane">
+                        <div class="card">
+                            <h2 style="margin-bottom: 20px;">Manage Devices</h2>
+                            <div class="devices-grid" id="manageDevicesGrid">
+                                <!-- Devices will be added dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Page -->
+        <div id="schedulePage" class="page">
+            <h1 class="page-title"><i class="fas fa-calendar-alt"></i> Blocking Schedule</h1>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Device Schedules</h2>
+                    <button id="addScheduleBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Add Schedule</button>
+                </div>
+
+                <div class="form-group">
+                    <label for="scheduleDeviceFilter">Filter by Device</label>
+                    <select id="scheduleDeviceFilter" class="form-control">
+                        <option value="all">All Devices</option>
+                        <!-- Devices will be populated dynamically -->
+                    </select>
+                </div>
+
+                <div id="schedulesList">
+                    <!-- Schedules will be added dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Page -->
+        <div id="statsPage" class="page">
+            <h1 class="page-title"><i class="fas fa-chart-bar"></i> Usage Statistics</h1>
+
+            <div class="card">
+                <div class="stats-controls">
+                    <div>
+                        <label for="statsDeviceFilter">Device:</label>
+                        <select id="statsDeviceFilter" class="form-control">
+                            <option value="all">All Devices</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="statsTimeFilter">Period:</label>
+                        <select id="statsTimeFilter" class="form-control">
+                            <option value="day">Last 24 Hours</option>
+                            <option value="week">Last Week</option>
+                            <option value="month">Last Month</option>
+                            <option value="year">Last Year</option>
+                        </select>
+                    </div>
+
+                    <div class="chart-type-selector">
+                        <button class="btn btn-outline active" data-type="bar"><i class="fas fa-chart-bar"></i></button>
+                        <button class="btn btn-outline" data-type="line"><i class="fas fa-chart-line"></i></button>
+                        <button class="btn btn-outline" data-type="pie"><i class="fas fa-chart-pie"></i></button>
+                    </div>
+                </div>
+
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                        <div class="stat-value" id="totalUsage">0h 0m</div>
+                        <div class="stat-label">Total Usage</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-mobile-alt"></i></div>
+                        <div class="stat-value" id="mostUsedDevice">-</div>
+                        <div class="stat-label">Most Used Device</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
+                        <div class="stat-value" id="avgDailyUsage">0h 0m</div>
+                        <div class="stat-label">Avg. Daily Usage</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-ban"></i></div>
+                        <div class="stat-value" id="blockedTime">0h 0m</div>
+                        <div class="stat-label">Blocked Time</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="usageChart"></canvas>
+                </div>
+
+                <div class="card" style="margin-top: 30px;">
+                    <div class="card-header">
+                        <h2>App Usage Breakdown</h2>
+                        <button id="toggleAppChart" class="btn btn-outline">
+                            <i class="fas fa-chevron-down"></i> Show Details
+                        </button>
+                    </div>
+                    <div id="appUsageContainer" style="display: none;">
+                        <div class="chart-container" style="height: 300px;">
+                            <canvas id="appUsageChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 30px;">
+                    <div class="card-header">
+                        <h2>Category Analysis</h2>
+                    </div>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="comparison-container">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Weekly Comparison</h2>
+                        </div>
+                        <div class="chart-container comparison-chart">
+                            <canvas id="comparisonChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Usage Trend</h2>
+                        </div>
+                        <div class="usage-comparison">
+                            <div class="comparison-item">
+                                <div class="comparison-value" id="currentWeek">0h</div>
+                                <div class="comparison-label">This Week</div>
+                            </div>
+                            <div class="comparison-item">
+                                <div class="comparison-value" id="previousWeek">0h</div>
+                                <div class="comparison-label">Previous Week</div>
+                            </div>
+                            <div class="comparison-item">
+                                <div class="comparison-value" id="trendPercentage">0%</div>
+                                <div class="comparison-label">Change</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Page -->
+        <div id="profilePage" class="page">
+            <h1 class="page-title"><i class="fas fa-user"></i> User Profile</h1>
+
+            <div class="profile-grid">
+                <div class="card profile-card">
+                    <form id="profileForm">
+                        <div class="form-group">
+                            <label for="profileFirstName">First Name</label>
+                            <input type="text" id="profileFirstName" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="profileLastName">Last Name</label>
+                            <input type="text" id="profileLastName" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="profileEmail">Email</label>
+                            <input type="email" id="profileEmail" class="form-control" disabled>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="profilePhone">Phone</label>
+                            <input type="tel" id="profilePhone" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="profileTimezone">Timezone</label>
+                            <select id="profileTimezone" class="form-control">
+                                <option value="UTC-12">UTC-12:00</option>
+                                <option value="UTC-11">UTC-11:00</option>
+                                <option value="UTC-10">UTC-10:00</option>
+                                <option value="UTC-9">UTC-09:00</option>
+                                <option value="UTC-8">UTC-08:00</option>
+                                <option value="UTC-7">UTC-07:00</option>
+                                <option value="UTC-6">UTC-06:00</option>
+                                <option value="UTC-5">UTC-05:00</option>
+                                <option value="UTC-4">UTC-04:00</option>
+                                <option value="UTC-3">UTC-03:00</option>
+                                <option value="UTC-2">UTC-02:00</option>
+                                <option value="UTC-1">UTC-01:00</option>
+                                <option value="UTC">UTC±00:00</option>
+                                <option value="UTC+1">UTC+01:00</option>
+                                <option value="UTC+2">UTC+02:00</option>
+                                <option value="UTC+3">UTC+03:00</option>
+                                <option value="UTC+4">UTC+04:00</option>
+                                <option value="UTC+5">UTC+05:00</option>
+                                <option value="UTC+6">UTC+06:00</option>
+                                <option value="UTC+7">UTC+07:00</option>
+                                <option value="UTC+8">UTC+08:00</option>
+                                <option value="UTC+9">UTC+09:00</option>
+                                <option value="UTC+10">UTC+10:00</option>
+                                <option value="UTC+11">UTC+11:00</option>
+                                <option value="UTC+12">UTC+12:00</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">Update Profile</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Account Security</h2>
+                    <div class="form-group">
+                        <label>Change Password</label>
+                        <input type="password" id="currentPassword" class="form-control" placeholder="Current password">
+                        <input type="password" id="newPassword" class="form-control mt-2" placeholder="New password">
+                        <input type="password" id="confirmPassword" class="form-control mt-2" placeholder="Confirm new password">
+                        <button id="changePasswordBtn" class="btn btn-primary mt-2">Change Password</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Subscription</h2>
+                    <p>Your current plan: <strong>FamilyGuard Premium</strong></p>
+                    <p>Expires on: <strong>December 31, 2025</strong></p>
+                    <button class="btn btn-outline">Manage Subscription</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settingsPage" class="page">
+            <h1 class="page-title"><i class="fas fa-cog"></i> Settings</h1>
+
+            <div class="settings-grid">
+                <div class="card">
+                    <h2>Notification Preferences</h2>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="emailNotifications" checked>
+                            Email Notifications
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="pushNotifications" checked>
+                            Push Notifications
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="blockingAlerts" checked>
+                            Blocking Alerts
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="usageReports">
+                            Weekly Usage Reports
+                        </label>
+                    </div>
+
+                    <button id="saveNotificationSettings" class="btn btn-primary">Save Settings</button>
+                </div>
+
+                <div class="card">
+                    <h2>App Preferences</h2>
+
+                    <div class="form-group">
+                        <label for="language">Language</label>
+                        <select id="language" class="form-control">
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="ru">Russian</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="theme">Theme</label>
+                        <select id="theme" class="form-control">
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                            <option value="system">System Default</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="timeFormat">Time Format</label>
+                        <select id="timeFormat" class="form-control">
+                            <option value="12">12-hour</option>
+                            <option value="24">24-hour</option>
+                        </select>
+                    </div>
+
+                    <button id="saveAppSettings" class="btn btn-primary">Save Settings</button>
+                </div>
+
+                <div class="card">
+                    <h2>Family Members</h2>
+                    <div id="familyMembersList">
+                        <div class="family-member">
+                            <div class="user-avatar">JS</div>
+                            <div>
+                                <strong>John Smith</strong>
+                                <p>Parent (Owner)</p>
+                            </div>
+                        </div>
+
+                        <div class="family-member">
+                            <div class="user-avatar">MS</div>
+                            <div>
+                                <strong>Mary Smith</strong>
+                                <p>Parent</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline">Edit</button>
+                        </div>
+
+                        <div class="family-member">
+                            <div class="user-avatar">TS</div>
+                            <div>
+                                <strong>Tom Smith</strong>
+                                <p>Child</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline">Edit</button>
+                        </div>
+                    </div>
+
+                    <button id="addFamilyMember" class="btn btn-primary mt-3"><i class="fas fa-plus"></i> Add Family Member</button>
+                </div>
+
+                <div class="card">
+                    <h2>Advanced Settings</h2>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="strictMode">
+                            Strict Blocking Mode
+                        </label>
+                        <p class="small text-muted">Prevents circumvention of blocking using VPNs or other methods</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="locationTracking">
+                            Location Tracking
+                        </label>
+                        <p class="small text-muted">Enable real-time location tracking for child devices</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="appLimits">
+                            Enable App Usage Limits
+                        </label>
+                        <p class="small text-muted">Set daily time limits for specific applications</p>
+                    </div>
+
+                    <button id="saveAdvancedSettings" class="btn btn-primary">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications Page -->
+        <div id="notificationsPage" class="page">
+            <h1 class="page-title"><i class="fas fa-bell"></i> Notifications</h1>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>All Notifications</h2>
+                    <button id="clearNotifications" class="btn btn-outline">Clear All</button>
+                </div>
+
+                <div id="notificationsList">
+                    <div class="notification-item">
+                        <div class="notification-icon">
+                            <i class="fas fa-shield-alt text-primary"></i>
+                        </div>
+                        <div class="notification-content">
+                            <h4>Device Blocked</h4>
+                            <p>Tom's iPad has been blocked during school hours</p>
+                            <div class="notification-time">10:30 AM · Today</div>
+                        </div>
+                    </div>
+
+                    <div class="notification-item">
+                        <div class="notification-icon">
+                            <i class="fas fa-exclamation-triangle text-warning"></i>
+                        </div>
+                        <div class="notification-content">
+                            <h4>Unusual Activity</h4>
+                            <p>Tom attempted to access a restricted website</p>
+                            <div class="notification-time">Yesterday · 8:15 PM</div>
+                        </div>
+                    </div>
+
+                    <div class="notification-item">
+                        <div class="notification-icon">
+                            <i class="fas fa-check-circle text-success"></i>
+                        </div>
+                        <div class="notification-content">
+                            <h4>New Device Added</h4>
+                            <p>Mary's iPhone has been successfully tethered to your account</p>
+                            <div class="notification-time">Oct 12 · 3:45 PM</div>
+                        </div>
+                    </div>
+
+                    <div class="notification-item">
+                        <div class="notification-icon">
+                            <i class="fas fa-chart-line text-info"></i>
+                        </div>
+                        <div class="notification-content">
+                            <h4>Weekly Report</h4>
+                            <p>Your weekly usage report is ready to view</p>
+                            <div class="notification-time">Oct 10 · 9:00 AM</div>
+                        </div>
+                    </div>
+
+                    <div class="notification-item">
+                        <div class="notification-icon">
+                            <i class="fas fa-sync-alt text-primary"></i>
+                        </div>
+                        <div class="notification-content">
+                            <h4>App Updated</h4>
+                            <p>FamilyGuard has been updated to version 2.5</p>
+                            <div class="notification-time">Oct 5 · 11:30 AM</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for adding device -->
+    <div id="deviceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add New Device</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="deviceForm">
+                    <div class="form-group">
+                        <label for="deviceName">Device Name</label>
+                        <input type="text" id="deviceName" class="form-control" placeholder="e.g., John's iPhone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="deviceModel">Model</label>
+                        <input type="text" id="deviceModel" class="form-control" placeholder="e.g., iPhone 13">
+                    </div>
+                    <div class="form-group">
+                        <label for="deviceOS">OS Version</label>
+                        <input type="text" id="deviceOS" class="form-control" placeholder="e.g., iOS 15.4">
+                    </div>
+                    <div class="form-group">
+                        <label for="tetheringCode">Tethering Code</label>
+                        <input type="text" id="tetheringCode" class="form-control" placeholder="Enter tethering code" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline close-modal">Cancel</button>
+                <button id="saveDeviceBtn" class="btn btn-primary">Add Device</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for adding schedule -->
+    <div id="scheduleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add Blocking Schedule</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="scheduleForm">
+                    <div class="form-group">
+                        <label for="scheduleDevice">Device</label>
+                        <select id="scheduleDevice" class="form-control" required>
+                            <!-- Devices will be populated dynamically -->
+                        </select>
+                    </div>
+
+                    <div class="schedule-form-grid">
+                        <div class="form-group">
+                            <label for="scheduleStart">Start Time</label>
+                            <input type="text" id="scheduleStart" class="form-control time-picker" placeholder="Start time" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="scheduleEnd">End Time</label>
+                            <input type="text" id="scheduleEnd" class="form-control time-picker" placeholder="End time" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="scheduleDays">Days of Week</label>
+                            <div class="days-selector">
+                                <label><input type="checkbox" name="day" value="mon"> Mon</label>
+                                <label><input type="checkbox" name="day" value="tue"> Tue</label>
+                                <label><input type="checkbox" name="day" value="wed"> Wed</label>
+                                <label><input type="checkbox" name="day" value="thu"> Thu</label>
+                                <label><input type="checkbox" name="day" value="fri"> Fri</label>
+                                <label><input type="checkbox" name="day" value="sat"> Sat</label>
+                                <label><input type="checkbox" name="day" value="sun"> Sun</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="scheduleType">Blocking Type</label>
+                            <select id="scheduleType" class="form-control">
+                                <option value="full">Full Device Block</option>
+                                <option value="app">Specific Apps Only</option>
+                                <option value="web">Web Content Filter</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="scheduleName">Schedule Name</label>
+                        <input type="text" id="scheduleName" class="form-control" placeholder="e.g., School Hours" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline close-modal">Cancel</button>
+                <button id="saveScheduleBtn" class="btn btn-primary">Save Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>FamilyGuard: AI Powered Parental Control © 2025</p>
+        </div>
+    </footer>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = window.location.origin;
+        const TOKEN_KEY = 'familyguard_token';
+        const USER_KEY = 'familyguard_user';
+
+        // DOM Elements
+        const notificationEl = document.getElementById('notification');
+        const registerForm = document.getElementById('registerForm');
+        const loginForm = document.getElementById('loginForm');
+        const showRegister = document.getElementById('showRegister');
+        const showLogin = document.getElementById('showLogin');
+        const registerPage = document.getElementById('registerPage');
+        const loginPage = document.getElementById('loginPage');
+        const userMenu = document.getElementById('userMenu');
+        const mainNav = document.getElementById('mainNav');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const pages = document.querySelectorAll('.page');
+        const dashboardPage = document.getElementById('dashboardPage');
+        const devicesPage = document.getElementById('devicesPage');
+        const schedulePage = document.getElementById('schedulePage');
+        const statsPage = document.getElementById('statsPage');
+        const profilePage = document.getElementById('profilePage');
+        const settingsPage = document.getElementById('settingsPage');
+        const notificationsPage = document.getElementById('notificationsPage');
+        const devicesGrid = document.getElementById('devicesGrid');
+        const manageDevicesGrid = document.getElementById('manageDevicesGrid');
+        const addDeviceBtn = document.getElementById('addDeviceBtn');
+        const deviceModal = document.getElementById('deviceModal');
+        const saveDeviceBtn = document.getElementById('saveDeviceBtn');
+        const closeModalBtns = document.querySelectorAll('.close-modal');
+        const deviceForm = document.getElementById('deviceForm');
+        const bindingCodeEl = document.getElementById('bindingCode');
+        const generateNewCodeBtn = document.getElementById('generateNewCodeBtn');
+        const tabs = document.querySelectorAll('.tab');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+        const addScheduleBtn = document.getElementById('addScheduleBtn');
+        const scheduleModal = document.getElementById('scheduleModal');
+        const saveScheduleBtn = document.getElementById('saveScheduleBtn');
+        const scheduleForm = document.getElementById('scheduleForm');
+        const profileForm = document.getElementById('profileForm');
+        const changePasswordBtn = document.getElementById('changePasswordBtn');
+        const clearNotificationsBtn = document.getElementById('clearNotifications');
+        const recentNotifications = document.getElementById('recentNotifications');
+        const viewAllNotifications = document.getElementById('viewAllNotifications');
+        const toggleAppChartBtn = document.getElementById('toggleAppChart');
+        const appUsageContainer = document.getElementById('appUsageContainer');
+
+        // Chart instances
+        let usageChartInstance = null;
+        let appUsageChartInstance = null;
+        let categoryChartInstance = null;
+        let comparisonChartInstance = null;
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            notificationEl.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' :
+                                 type === 'error' ? 'fa-exclamation-circle' :
+                                 type === 'warning' ? 'fa-exclamation-triangle' :
+                                 'fa-info-circle'}"></i>
+                ${message}
+            `;
+            notificationEl.className = `notification ${type}`;
+            notificationEl.style.display = 'flex';
+
+            setTimeout(() => {
+                notificationEl.style.display = 'none';
+            }, 5000);
+        }
+
+        // Navigate between pages
+        function showPage(pageId) {
+            pages.forEach(page => {
+                page.classList.remove('active');
+                if (page.id === `${pageId}Page`) {
+                    page.classList.add('active');
+                }
+            });
+
+            navLinks.forEach(link => link.classList.remove('active'));
+
+            if (pageId !== 'login' && pageId !== 'register') {
+                document.querySelector(`.nav-link[data-page="${pageId}"]`)?.classList.add('active');
+            }
+
+            // Load page-specific data
+            if (pageId === 'dashboard') loadDashboard();
+            else if (pageId === 'devices') loadDevicesPage();
+            else if (pageId === 'schedule') loadSchedules();
+            else if (pageId === 'stats') loadStats();
+            else if (pageId === 'profile') loadProfile();
+            else if (pageId === 'notifications') loadNotifications();
+        }
+
+        // Get current user
+        function getCurrentUser() {
+            const user = localStorage.getItem(USER_KEY);
+            return user ? JSON.parse(user) : null;
+        }
+
+        // Load user info
+        function loadUserInfo() {
+            const user = getCurrentUser();
+            if (user) {
+                userMenu.innerHTML = `
+                    <div class="user-avatar">${user.firstName.charAt(0)}${user.lastName.charAt(0)}</div>
+                    <div>${user.firstName} ${user.lastName}</div>
                     <button id="logoutBtn" class="btn btn-login"><i class="fas fa-sign-out-alt"></i> Log Out</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</header>
+                `;
 
-<main class="container">
-    <!-- Notifications -->
-    <div id="notification" class="notification"></div>
+                mainNav.style.display = 'block';
 
-    <!-- Page of registration -->
-    <div id="registerPage" class="page">
-        <div class="card">
-            <h2 class="page-title"><i class="fas fa-user-plus"></i> Parent Registration</h2>
-            <form id="registerForm">
-                <div class="form-group">
-                    <label for="regName">Name</label>
-                    <input type="text" id="regName" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="regEmail">Email</label>
-                    <input type="email" id="regEmail" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="regPassword">Password</label>
-                    <input type="password" id="regPassword" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="regConfirmPassword">Confirm the Password</label>
-                    <input type="password" id="regConfirmPassword" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-user-plus"></i> Create an Account</button>
-                <p style="text-align: center; margin-top: 20px;">
-                    Already Have an Account? <a href="#" id="showLogin">Log In</a>
-                </p>
-            </form>
-        </div>
-    </div>
-
-    <!-- Log in page-->
-    <div id="loginPage" class="page">
-        <div class="card">
-            <h2 class="page-title"><i class="fas fa-sign-in-alt"></i> Log In Into System</h2>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="loginEmail">Email</label>
-                    <input type="email" id="loginEmail" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-sign-in-alt"></i> Log In</button>
-                <p style="text-align: center; margin-top: 20px;">
-                    Have Not Got an Account? <a href="#" id="showRegister">Create an Account</a>
-                </p>
-            </form>
-        </div>
-    </div>
-
-    <!-- The Main Page -->
-    <div id="dashboardPage" class="page active">
-        <h1 class="page-title"><i class="fas fa-home"></i> Control Dashboard</h1>
-
-        <div class="stats-container">
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-mobile-alt"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value" id="devicesCount">0</div>
-                    <div class="stat-label">Devices</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value" id="screenTimeAvg">0 min</div>
-                    <div class="stat-label">Average Time</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-ban"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value" id="blockedCount">0</div>
-                    <div class="stat-label">Blocked</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h2>Linked Devices</h2>
-                <button id="addDeviceBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Add Device</button>
-            </div>
-            <div class="devices-grid" id="devicesGrid">
-                <!-- Devices will be added using java script -->
-            </div>
-        </div>
-
-        <!-- FIX: Persistent buttons container -->
-        <div class="card persistent-buttons">
-            <div class="card-header">
-                <h2>Quick Actions</h2>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                <button id="requestScreenshotBtn" class="btn btn-primary"><i class="fas fa-camera"></i> Request a Screenshot</button>
-                <button id="blockDeviceBtn" class="btn btn-danger"><i class="fas fa-lock"></i> Block Device</button>
-                <button id="unblockAllBtn" class="btn btn-success"><i class="fas fa-lock-open"></i> Unblock Device</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Page for devices managing -->
-    <div id="devicesPage" class="page">
-        <h1 class="page-title"><i class="fas fa-mobile-alt"></i> Devices managing</h1>
-
-        <div class="tab-container">
-            <div class="tabs">
-                <div class="tab active" data-tab="bind-device">Tether the Device</div>
-                <div class="tab" data-tab="manage-devices">My Devices</div>
-            </div>
-
-            <div class="tab-content">
-                <div id="bindDeviceTab" class="tab-pane active">
-                    <div class="card">
-                        <h2 style="margin-bottom: 20px; text-align: center;">Tethering of New Device</h2>
-
-                        <div class="qr-code-container">
-                            <div class="qr-code">📱</div>
-                            <p>Open the App On Your Child Device and Scan the QR-code </p>
-                            <p style="margin: 20px 0;">Or Enter the Code Manually:</p>
-                            <div class="binding-code" id="bindingCode">5H8J9</div>
-                            <p>The Code Is Valid for 10 Minutes</p>
-                        </div>
-
-                        <div style="text-align: center; margin-top: 30px;">
-                            <button id="generateNewCodeBtn" class="btn btn-outline"><i class="fas fa-sync-alt"></i> Generate a New Code</button>
-                        </div>
+                // Add logout event listener
+                document.getElementById('logoutBtn')?.addEventListener('click', logout);
+            } else {
+                userMenu.innerHTML = `
+                    <div class="auth-buttons">
+                        <button id="showLoginBtn" class="btn btn-login">Login</button>
+                        <button id="showRegisterBtn" class="btn btn-register">Register</button>
                     </div>
-                </div>
+                `;
 
-                <div id="manageDevicesTab" class="tab-pane">
-                    <div class="card">
-                        <h2 style="margin-bottom: 20px;">Devices Managing</h2>
-                        <div class="devices-grid" id="manageDevicesGrid">
-                            <!-- Devices for Managing -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                mainNav.style.display = 'none';
 
-    <!-- Page for monitoring -->
-    <div id="monitoringPage" class="page">
-        <div class="card">
-            <div class="card-header">
-                <h2 class="page-title"><i class="fas fa-eye"></i> Application Monitoring</h2>
-                <button id="newScreenshotBtn" class="btn btn-primary"><i class="fas fa-camera"></i> Take Screenshot</button>
-            </div>
+                // Add event listeners for auth buttons
+                document.getElementById('showLoginBtn')?.addEventListener('click', () => showPage('login'));
+                document.getElementById('showRegisterBtn')?.addEventListener('click', () => showPage('register'));
+            }
+        }
 
-            <div class="form-group">
-                <label>Choose the Device:</label>
-                <select id="monitoringDeviceSelect" class="form-control">
-                    <option value="all">All Devices</option>
-                </select>
-            </div>
-
-            <div class="categories-bar" id="categoriesBar" style="position: relative;">
-                <!-- Categories will be dynamically added here -->
-                <div class="category-manager-btn" id="openCategoryManager">
-                    <i class="fas fa-cog"></i>
-                </div>
-            </div>
-
-            <div class="time-period-tabs">
-                <button class="time-period-tab active" data-period="day">Today</button>
-                <button class="time-period-tab" data-period="week">This Week</button>
-                <button class="time-period-tab" data-period="month">This Month</button>
-                <button class="time-period-tab" data-period="all">All Time</button>
-            </div>
-
-            <h3 id="screenshotsTitle" style="margin-bottom: 20px;">Screenshots for <span id="selectedCategoryName">All</span></h3>
-            <div class="screenshots-container" id="monitoringScreenshotsContainer">
-                <!-- Screenshots will be added here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Page for statistics -->
-    <div id="statisticPage" class="page">
-        <h1 class="page-title"><i class="fas fa-chart-bar"></i> Usage Statistics Dashboard</h1>
-
-        <div class="stats-container">
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value" id="totalScreenTime">0h 0min</div>
-                    <div class="stat-label">Total Screen Time</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-ban"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value" id="blockedApps">0</div>
-                    <div class="stat-label">Blocked Apps</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value" id="alertsCount">0</div>
-                    <div class="stat-label">Security Alerts</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-mobile-alt"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-value" id="activeDevices">0</div>
-                    <div class="stat-label">Active Devices</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="filters">
-            <div class="filter-group">
-                <label for="deviceFilter">Device:</label>
-                <select id="deviceFilter" class="form-control">
-                    <option value="all">All Devices</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="timeRangeFilter">Time Range:</label>
-                <select id="timeRangeFilter" class="form-control">
-                    <option value="7">Last 7 Days</option>
-                    <option value="30" selected>Last 30 Days</option>
-                    <option value="90">Last 3 Months</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="categoryFilter">Category:</label>
-                <select id="categoryFilter" class="form-control">
-                    <option value="all">All Categories</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>&nbsp;</label>
-                <button class="btn btn-outline"><i class="fas fa-download"></i> Export Data</button>
-            </div>
-        </div>
-
-        <div class="chart-grid">
-            <div class="chart-container">
-                <div class="chart-header">
-                    <h2><i class="fas fa-chart-line"></i> Screen Time Trends</h2>
-                    <div>
-                        <select id="trendGranularity" class="form-control">
-                            <option value="day">By Day</option>
-                            <option value="week">By Week</option>
-                            <option value="month">By Month</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="chart-canvas">
-                    <canvas id="screenTimeChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-container">
-                <div class="chart-header">
-                    <h2><i class="fas fa-mobile-alt"></i> Device Usage Distribution</h2>
-                </div>
-                <div class="chart-can极vas">
-                    <canvas id="deviceUsageChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-container">
-                <div class="chart-header">
-                    <h2><i class="fas fa-layer-group"></i> Category Usage</h2>
-                </div>
-                <div class="chart-canvas">
-                    <canvas id="categoryUsageChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-container">
-                <div class="chart-header">
-                    <h2><i class="fas fa-history"></i> Daily Activity</h2>
-                </div>
-                <div class="chart-canvas">
-                    <canvas id="dailyActivityChart"></canvas>
-                </极div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h2><i class="fas fa-list"></i> Application Usage Statistics</h2>
-                <div>
-                    <input type="text" id="appSearch" class="form-control" placeholder="Search applications...">
-                </div>
-            </div>
-            <div style="overflow-x: auto;">
-                <table class="usage-table">
-                    <thead>
-                    <tr>
-                        <th data-sort="app">Application <span class="sort-indicator">▼</span></th>
-                        <th data-sort="category">Category</th>
-                        <th data-sort="time">Time (min)</th>
-                        <th data-sort="percent">% of Total</th>
-                        <th data-sort="status">Status</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody id="appUsageTable">
-                    <!-- Data will be populated dynamically -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h2><i class="fas fa-shield-alt"></i> Security Events</h2>
-            </div>
-            <div id="securityEvents">
-                <!-- Events will be populated dynamically -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Page for settings -->
-    <div id="settingsPage" class="page">
-        <h1 class="page-title"><i class="fas fa-cog"></i> Settings</h1>
-
-        <div class="card">
-            <h2 style="margin-bottom: 20px;"><i class="fas fa-clock"></i> Screen Time Settings</h2>
-
-            <div class="form-group">
-                <label for="screenTimeLimit">Limit of Screen Time (minutes per day)</label>
-                <input type="number" id="screenTimeLimit" class="form-control" min="0" step="15" placeholder="0 - without limit">
-            </div>
-
-            <div class="form-group">
-                <label>Limits Schedule:</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
-                    <div class="form-group">
-                        <label for="timeStart">Start:</label>
-                        <input type="time" id="timeStart" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="timeEnd">End:</label>
-                        <input type="time" id="timeEnd" class="form-control">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2 style="margin-bottom: 20px;"><i class="fas fa-camera"></i> Screenshots Settings</h2>
-
-            <div class="form-group">
-                <label for="screenshotFrequency">Frequency of Automatic Screenshots</label>
-                <select id="screenshotFrequency" class="form-control">
-                    <option value="0">Turned Off</option>
-                    <option value="5">Every 5 minute</option>
-                    <option value="15">Every 15 minute</option>
-                    <option value="30">Every 30 minute</option>
-                    <option value="60">Every hour</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="screenshotQuality">Quality of Screenshots</label>
-                <select id="screenshotQuality" class="form-control">
-                    <option value="low">Low(Economy Mode)</option>
-                    <option value="medium" selected>Middle</option>
-                    <option value="high">High</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2 style="margin-bottom: 20px;"><i class="fas fa-shield-alt"></i>Safety </h2>
-
-            <div class="form-group">
-                <label for="blockAllDevices">Emergency Locking</label>
-                <button id="blockAllDevicesBtn" class="btn btn-danger btn-block"><i class="fas fa-lock"></i> Block All Devices</button>
-                <p style="margin-top: 10px; font-size: 0.9rem; color: var(--text-secondary);">
-                    Block All Linked Devices
-                </p>
-            </div>
-
-            <div class="form-group">
-                <label for="autoLock">Auto-blocking When the Limit Is Exceeded</label>
-                <select id="autoLock" class="form-control">
-                    <option value="none">Do Not Block</option>
-                    <option value="lock">Block the Device</option>
-                    <option value="notify">Only Notification That Time Was Ended</option>
-                </select>
-            </div>
-        </div>
-</main>
-
-<!-- Modal window for adding a device -->
-<div id="deviceModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title" id="deviceModalTitle">Add a Device</h3>
-            <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="deviceForm">
-                <div class="form-group">
-                    <label for="deviceName">Device Name</label>
-                    <input type="text" id="deviceName" class="form-control" placeholder="e.g., John's iPhone" required>
-                </div>
-                <div class="form-group">
-                    <label for="deviceModel">Model</label>
-                    <input type="text" id="deviceModel" class="form-control" placeholder="e.g., iPhone 13">
-                </div>
-                <div class="form-group">
-                    <label for="deviceOS">OS Version</label>
-                    <input type="text" id="deviceOS" class="form-control" placeholder="e.g., iOS 15.4">
-                </div>
-                <div class="form-group">
-                    <label>Device Type</label>
-                    <div class="device-type-selector">
-                        <div class="device-type" data-type="phone">
-                            <i class="fas fa-mobile-alt"></i>
-                            <div>Phone</div>
-                        </div>
-                        <div class="device-type" data-type="tablet">
-                            <i class="fas fa-tablet-alt"></i>
-                            <div>Tablet</div>
-                        </div>
-                        <div class="device-type" data-type="laptop">
-                            <i class="fas fa-laptop"></i>
-                            <div>Laptop</div>
-                        </div>
-                        <div class="device-type" data-type="desktop">
-                            <i class="fas fa-desktop"></i>
-                            <div>Desktop</div>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline close-modal">Cancel</button>
-            <button id="saveDeviceBtn" class="btn btn-primary">Save Device</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal window for screenshot viewing-->
-<div id="screenshotModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title">View Screenshot</h3>
-            <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div style="text-align: center;">
-                <img id="screenshotImage" src="" alt="Screenshot" style="max-width: 100%; border-radius: 8px;">
-            </div>
-            <div style="margin-top: 20px;">
-                <p><strong>Device:</strong> <span id="screenshotDeviceName"></span></p>
-                <p><strong>Date:</strong> <span id="screenshotDate"></span></p>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button id="deleteScreenshotBtn" class="btn btn-danger"><i class="fas fa-trash"></i> Delete</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal window for successful device creation -->
-<div id="deviceSuccessModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title">Device Added Successfully</h3>
-            <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="device-creation-success">
-                <i class="fas fa-check-circle"></i>
-                <h3>Device Successfully Added!</h3>
-                <p>You can now monitor this device from your dashboard.</p>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-primary close-modal">Continue</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal window for category management -->
-<div id="categoryManagerModal" class="modal">
-    <div class="modal-content category-manager-modal">
-        <div class="modal-header">
-            <h3 class="modal-title"><i class="fas fa-layer-group"></i> Category Management</h3>
-            <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <h4 style="margin-bottom: 15px;">Add New Category</h4>
-                <div style="display: flex; gap: 10px; align-items: flex-end;">
-                    <div style="flex: 1;">
-                        <label for="newCategoryName">Category Name</label>
-                        <input type="text" id="newCategoryName" class="form-control" placeholder="Enter category name">
-                    </div>
-                    <div>
-                        <label for="newCategoryIcon">Icon</label>
-                        <select id="newCategoryIcon" class="form-control">
-                            <option value="🎮">🎮 Games</option>
-                            <option value="👥">👥 Social Media</option>
-                            <option value="🔞">🔞 Illegal Content</option>
-                            <option value="📚">📚 Education</option>
-                            <option value="🛒">🛒 Shopping</option>
-                            <option value="🌐">🌐 Internet</option>
-                            <option value="🎭">🎭 Entertainments</option>
-                            <option value="💼">💼 Work</option>
-                            <option value="🏃">🏃 Sport</option>
-                        </select>
-                    </div>
-                    <div>
-                        <button id="addNewCategoryBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Add</button>
-                    </div>
-                </div>
-            </div>
-
-            <h4 style="margin: 20px 0 15px;">Manage Categories</h4>
-            <div class="category-list-manager" id="categoryListManager">
-                <!-- Categories will be populated here -->
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline close-modal">Close</button>
-        </div>
-    </div>
-</div>
-
-<footer>
-    <div class="container">
-        <p>FamilyGuard: AI Powered Parental Control © 2025.</p>
-        <div class="footer-links">
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Use</a>
-            <a href="#">Contacts</a>
-        </div>
-        <p style="margin-top: 15px; font-size: 0.9rem;">For contact: support@familyguard.ru</p>
-    </div>
-</footer>
-
-<script>
-    // Конфигурация API
-    const API_BASE_URL = 'http://localhost:8080';
-    const TOKEN_KEY = 'familyguard_token';
-    const USER_KEY = 'familyguard_user';
-
-    // Утилиты для работы с API
-    const api = {
-        // Выполнение запросов с авторизацией
-        async request(url, method, body = null) {
-            const token = localStorage.getItem(TOKEN_KEY);
+        // API request
+        async function apiRequest(url, method, body = null) {
             const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json'
             };
+
+            // Add token if available
+            const token = localStorage.getItem(TOKEN_KEY);
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
 
             const options = {
                 method,
@@ -2064,684 +1741,1073 @@
 
             try {
                 const response = await fetch(`${API_BASE_URL}${url}`, options);
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || `Request failed: ${response.status}`);
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                let data;
+
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    throw new Error(text || `Unexpected response: ${response.status}`);
                 }
-                return await response.json();
+
+                if (!response.ok) {
+                    const error = data.message || `Request failed: ${response.status}`;
+                    if (response.status === 401) {
+                        logout();
+                    }
+                    throw new Error(error);
+                }
+
+                return data;
             } catch (error) {
                 console.error('API request error:', error);
                 throw error;
             }
-        },
-
-        // Регистрация пользователя
-        async register(userData) {
-            const response = await fetch(`${API_BASE_URL}/api/v1/register`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(userData)
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Registration failed');
-            }
-
-            return await response.json();
-        },
-
-        // Авторизация пользователя
-        async login(credentials) {
-            const response = await fetch(`${API_BASE_URL}/api/v1/login`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(credentials)
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Login failed');
-            }
-
-            return await response.json();
-        },
-
-        // Генерация кода привязки
-        async generateTetheringCode() {
-            return this.request('/api/v1/tethering-code', 'POST');
-        },
-
-        // Добавление устройства
-        async addDevice(deviceData) {
-            return this.request('/api/v1/devices', 'POST', deviceData);
-        },
-
-        // Получение списка устройств
-        async getDevices() {
-            return this.request('/api/v1/devices', 'GET');
-        },
-
-        // Блокировка устройства
-        async blockDevice(deviceId) {
-            return this.request(`/api/v1/devices/${deviceId}/block`, 'POST');
-        },
-
-        // Разблокировка устройства
-        async unblockDevice(deviceId) {
-            return this.request(`/api/v1/devices/${deviceId}/unblock`, 'POST');
-        },
-
-        // Получение скриншотов
-        async getScreenshots(deviceId = 'all') {
-            // В реальной реализации здесь будет вызов к API
-            // Для демонстрации возвращаем пустой массив
-            return [];
         }
-    };
 
-    // Сервисы для работы с данными
-    const userService = {
-        // Регистрация пользователя
-        register: async (userData) => {
+        // Register user
+        async function registerUser(userData) {
             try {
-                const data = await api.register(userData);
-                return { success: true, user: data };
+                const response = await apiRequest('/api/v1/register', 'POST', userData);
+                showNotification('Account created successfully! Please login.', 'success');
+                showPage('login');
             } catch (error) {
-                return { success: false, message: error.message };
-            }
-        },
+                let errorMsg = 'Registration failed';
 
-        // Авторизация пользователя
-        login: async (email, password) => {
+                if (error.message.includes('Email already exists')) {
+                    errorMsg = 'Email already exists';
+                } else if (error.message.includes('Invalid input')) {
+                    errorMsg = 'Please fill all required fields correctly';
+                }
+
+                showNotification(`${errorMsg}: ${error.message}`, 'error');
+            }
+        }
+
+        // Login user
+        async function loginUser(credentials) {
             try {
-                const data = await api.login({ email, password });
-                // Сохраняем токен и информацию о пользователе
-                localStorage.setItem(TOKEN_KEY, data.token);
-                localStorage.setItem(USER_KEY, JSON.stringify({
-                    userId: data.userId,
-                    email: data.email,
-                    firstName: data.firstName,
-                    lastName: data.lastName
-                }));
-                return { success: true, user: data };
-            } catch (error) {
-                return { success: false, message: error.message };
-            }
-        },
+                const response = await apiRequest('/api/v1/login', 'POST', credentials);
 
-        // Выход из системы
-        logout: () => {
+                if (response.status === "success") {
+                    // Save token and user info
+                    localStorage.setItem(TOKEN_KEY, response.data.token);
+                    localStorage.setItem(USER_KEY, JSON.stringify({
+                        userId: response.data.userId,
+                        email: response.data.email,
+                        firstName: response.data.firstName,
+                        lastName: response.data.lastName
+                    }));
+
+                    showNotification('Login successful!', 'success');
+                    loadUserInfo();
+                    showPage('dashboard');
+                } else {
+                    throw new Error(response.message || "Invalid credentials");
+                }
+            } catch (error) {
+                let errorMsg = 'Login failed';
+
+                if (error.message.includes('Invalid credentials')) {
+                    errorMsg = 'Invalid email or password';
+                }
+
+                showNotification(`${errorMsg}: ${error.message}`, 'error');
+            }
+        }
+
+        // Logout
+        function logout() {
             localStorage.removeItem(TOKEN_KEY);
             localStorage.removeItem(USER_KEY);
-        },
-
-        // Получение текущего пользователя
-        getCurrentUser: () => {
-            const user = localStorage.getItem(USER_KEY);
-            return user ? JSON.parse(user) : null;
+            showNotification('You have been logged out', 'success');
+            loadUserInfo();
+            showPage('login');
         }
-    };
 
-    const deviceService = {
-        // Добавление устройства
-        addDevice: async (deviceData) => {
+        // ==============================================
+        // DEVICE MANAGEMENT FUNCTIONALITY
+        // ==============================================
+
+        // Function to load devices into a grid
+        async function loadDevicesGrid(gridElement, isDashboard = false) {
             try {
-                const data = await api.addDevice(deviceData);
-                return data;
-            } catch (error) {
-                console.error('Error adding device:', error);
-                throw error;
-            }
-        },
+                const data = await apiRequest('/api/v1/devices', 'GET');
+                gridElement.innerHTML = '';
 
-        // Получение устройств пользователя
-        getUserDevices: async () => {
-            try {
-                const data = await api.getDevices();
-                return data;
-            } catch (error) {
-                console.error('Error getting devices:', error);
-                return [];
-            }
-        },
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(device => {
+                        const isBlocked = device.isBlocked;
+                        const statusClass = isBlocked ? 'blocked' : 'online';
+                        const buttonClass = isBlocked ? 'btn-success' : 'btn-danger';
+                        const buttonIcon = isBlocked ? 'fa-lock-open' : 'fa-lock';
+                        const buttonText = isBlocked ? 'Unblock' : 'Block';
+                        const action = isBlocked ? 'unblock' : 'block';
 
-        // Блокировка устройства
-        blockDevice: async (deviceId) => {
-            await api.blockDevice(deviceId);
-        },
-
-        // Разблокировка устройства
-        unblockDevice: async (deviceId) => {
-            await api.unblockDevice(deviceId);
-        }
-    };
-
-    const screenshotService = {
-        // Получение скриншотов
-        getScreenshots: async (deviceId = 'all') => {
-            return api.getScreenshots(deviceId);
-        }
-    };
-
-    // Утилиты
-    const utils = {
-        // Показать уведомление
-        showNotification: (message, type = 'success') => {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.className = `notification ${type}`;
-            notification.style.display = 'flex';
-
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 5000);
-        },
-
-        // Навигация по страницам
-        navigateToPage: function(pageId) {
-            document.querySelectorAll('.page').forEach(page => {
-                page.classList.remove('active');
-            });
-
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-
-            document.getElementById(`${pageId}Page`).classList.add('active');
-            document.querySelector(`.nav-link[data-page="${pageId}"]`).classList.add('active');
-
-            // Загрузка данных для страницы
-            if (pageId === 'dashboard') loadDashboard();
-            else if (pageId === 'devices') loadDevicesPage();
-            else if (pageId === 'monitoring') loadMonitoringPage();
-        },
-
-        // Генерация случайного кода
-        generateRandomCode: () => {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let code = '';
-            for (let i = 0; i < 5; i++) {
-                code += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return code;
-        },
-
-        // Форматирование даты
-        formatDate: (dateString) => {
-            const date = new Date(dateString);
-            return date.toLocaleString('ru-RU');
-        },
-
-        // Открытие модального окна
-        openModal: (modalId) => {
-            document.getElementById(modalId).style.display = 'flex';
-        },
-
-        // Закрытие модального окна
-        closeModal: (modalId) => {
-            document.getElementById(modalId).style.display = 'none';
-        },
-
-        // Получение инициалов
-        getInitials: (name) => {
-            if (!name) return 'U';
-            const names = name.split(' ');
-            let initials = names[0][0];
-            if (names.length > 1) initials += names[1][0];
-            return initials.toUpperCase();
-        },
-
-        // Форматирование времени
-        formatTime: (minutes) => {
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            return `${hours > 0 ? hours + 'ч ' : ''}${mins}мин`;
-        }
-    };
-
-    // DOM элементы
-    const DOM = {
-        registerForm: document.getElementById('registerForm'),
-        loginForm: document.getElementById('loginForm'),
-        logoutBtn: document.getElementById('logoutBtn'),
-        showRegister: document.getElementById('showRegister'),
-        showLogin: document.getElementById('showLogin'),
-        addDeviceBtn: document.getElementById('addDeviceBtn'),
-        requestScreenshotBtn: document.getElementById('requestScreenshotBtn'),
-        newScreenshotBtn: document.getElementById('newScreenshotBtn'),
-        generateNewCodeBtn: document.getElementById('generateNewCodeBtn'),
-        devicesGrid: document.getElementById('devicesGrid'),
-        manageDevicesGrid: document.getElementById('manageDevicesGrid'),
-        bindingCode: document.getElementById('bindingCode'),
-        tabs: document.querySelectorAll('.tab'),
-        deviceModal: document.getElementById('deviceModal'),
-        screenshotModal: document.getElementById('screenshotModal'),
-        saveDeviceBtn: document.getElementById('saveDeviceBtn'),
-        blockDeviceBtn: document.getElementById('blockDeviceBtn'),
-        unblockAllBtn: document.getElementById('unblockAllBtn'),
-        userInfo: document.getElementById('userInfo'),
-        devicesCount: document.getElementById('devicesCount'),
-        blockedCount: document.getElementById('blockedCount'),
-        screenTimeAvg: document.getElementById('screenTimeAvg'),
-        blockAllDevicesBtn: document.getElementById('blockAllDevicesBtn'),
-        monitoringDeviceSelect: document.getElementById('monitoringDeviceSelect'),
-        categoriesBar: document.getElementById('categoriesBar'),
-        timePeriodTabs: document.querySelectorAll('.time-period-tab'),
-        monitoringScreenshotsContainer: document.getElementById('monitoringScreenshotsContainer'),
-        deleteScreenshotBtn: document.getElementById('deleteScreenshotBtn'),
-        openCategoryManager: document.getElementById('openCategoryManager'),
-        categoryManagerModal: document.getElementById('categoryManagerModal'),
-        newCategoryName: document.getElementById('newCategoryName'),
-        newCategoryIcon: document.getElementById('newCategoryIcon'),
-        addNewCategoryBtn: document.getElementById('addNewCategoryBtn'),
-        categoryListManager: document.getElementById('categoryListManager'),
-        deviceTypeSelectors: document.querySelectorAll('.device-type'),
-        deviceSuccessModal: document.getElementById('deviceSuccessModal')
-    };
-
-    // Загрузка данных для dashboard
-    async function loadDashboard() {
-        const user = userService.getCurrentUser();
-        if (!user) return;
-
-        try {
-            const devices = await deviceService.getUserDevices();
-            DOM.devicesGrid.innerHTML = '';
-            DOM.devicesCount.textContent = devices.length;
-
-            let blockedCount = 0;
-            let totalScreenTime = 0;
-
-            // Отображение устройств
-            if (devices.length === 0) {
-                DOM.devicesGrid.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-mobile-alt"></i>
-                        <h3>Devices Were Not Found</h3>
-                        <p>You Have Not Added Any Tracking Devices Yet</p>
-                        <button id="addFirstDeviceBtn" class="btn btn-primary" style="margin-top: 20px;">
-                            <i class="fas fa-plus"></i> Add First Device
-                        </button>
-                    </div>
-                `;
-
-                document.getElementById('addFirstDeviceBtn').addEventListener('click', () => {
-                    utils.openModal('deviceModal');
-                });
-            } else {
-                devices.forEach(device => {
-                    const lastActive = new Date(device.lastActive);
-                    const now = new Date();
-                    const minutesAgo = Math.floor((now - lastActive) / 60000);
-
-                    const deviceCard = document.createElement('div');
-                    deviceCard.className = 'device-card';
-                    deviceCard.innerHTML = `
-                        <div class="device-status ${minutesAgo > 5 ? 'offline' : ''} ${device.isBlocked ? 'offline' : ''}"></div>
-                        <div class="device-name">
-                            <i class="fas fa-mobile-alt"></i> ${device.name}
-                            ${device.isBlocked ? '<span style="color: var(--danger); margin-left: 10px;"><i class="fas fa-lock"></i> Is Blocked</span>' : ''}
-                        </div>
-                        <div class="device-info">
-                            <span>${device.model}</span>
-                            <span>${device.osVersion}</span>
-                            <span>Status: ${minutesAgo > 5 ? 'Offline' : 'Online'}</span>
-                            <span>Last Activity: ${minutesAgo} minutes ago</span>
-                        </div>
-                        <div class="device-actions">
-                            <button class="btn btn-sm ${device.isBlocked ? 'btn-success' : 'btn-danger'}"
-                                    data-device="${device.device_id}" data-action="${device.isBlocked ? 'unblock' : 'block'}">
-                                <i class="fas ${device.isBlocked ? 'fa-lock-open' : 'fa-lock'}"></i>
-                                ${device.isBlocked ? 'Unblock' : 'Block'}
-                            </button>
-                        </div>
-                    `;
-
-                    DOM.devicesGrid.appendChild(deviceCard);
-                });
-
-                // Обработчики для кнопок управления устройствами
-                document.querySelectorAll('[data-action="block"]').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const deviceId = btn.getAttribute('data-device');
-                        await deviceService.blockDevice(deviceId);
-                        utils.showNotification('The Device Is Blocked');
-                        loadDashboard();
-                    });
-                });
-
-                document.querySelectorAll('[data-action="unblock"]').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const deviceId = btn.getAttribute('data-device');
-                        await deviceService.unblockDevice(deviceId);
-                        utils.showNotification('The Device Was Unblocked');
-                        loadDashboard();
-                    });
-                });
-            }
-        } catch (error) {
-            utils.showNotification(`Error loading devices: ${error.message}`, 'error');
-        }
-    }
-
-    // Загрузка данных для страницы устройств
-    async function loadDevicesPage() {
-        try {
-            const devices = await deviceService.getUserDevices();
-            DOM.manageDevicesGrid.innerHTML = '';
-
-            if (devices.length === 0) {
-                DOM.manageDevicesGrid.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-mobile-alt"></i>
-                        <h3>Devices Were Not Found</h3>
-                        <p>You Have Not Added Any Devices For Tracking Yet</p>
-                    </div>
-                `;
-            } else {
-                devices.forEach(device => {
-                    const deviceCard = document.createElement('div');
-                    deviceCard.className = 'device-card';
-                    deviceCard.innerHTML = `
-                        <div class="device-name">
-                            <i class="fas fa-mobile-alt"></i> ${device.name}
-                            ${device.isBlocked ? '<span style="color: var(--danger); margin-left: 10px;"><i class="fas fa-lock"></i> Is Blocked</span>' : ''}
-                        </div>
-                        <div class="device-info">
-                            ${device.model} | ${device.osVersion}
-                        </div>
-                        <div class="device-actions">
-                            <button class="btn btn-sm ${device.isBlocked ? 'btn-success' : 'btn-danger'}"
-                                    data-device="${device.device_id}" data-action="${device.isBlocked ? 'unblock' : 'block'}">
-                                <i class="fas ${device.isBlocked ? 'fa-lock-open' : 'fa-lock'}"></i>
-                                ${device.isBlocked ? 'Unblock' : 'Block'}
-                            </button>
-                        </div>
-                    `;
-
-                    DOM.manageDevicesGrid.appendChild(deviceCard);
-                });
-
-                // Обработчики для кнопок управления устройствами
-                document.querySelectorAll('[data-action="block"]').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const deviceId = btn.getAttribute('data-device');
-                        await deviceService.blockDevice(deviceId);
-                        utils.showNotification('Device Is Blocked');
-                        loadDevicesPage();
-                    });
-                });
-
-                document.querySelectorAll('[data-action="unblock"]').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const deviceId = btn.getAttribute('data-device');
-                        await deviceService.unblockDevice(deviceId);
-                        utils.showNotification('Device Is Unblocked');
-                        loadDevicesPage();
-                    });
-                });
-            }
-
-            // Генерация кода привязки
-            DOM.bindingCode.textContent = utils.generateRandomCode();
-        } catch (error) {
-            utils.showNotification(`Error loading devices: ${error.message}`, 'error');
-        }
-    }
-
-    // Загрузка данных для страницы мониторинга
-    async function loadMonitoringPage() {
-        try {
-            const devices = await deviceService.getUserDevices();
-            DOM.monitoringDeviceSelect.innerHTML = '<option value="all">All Devices</option>';
-
-            devices.forEach(device => {
-                const option = document.createElement('option');
-                option.value = device.device_id;
-                option.textContent = device.name;
-                DOM.monitoringDeviceSelect.appendChild(option);
-            });
-
-            // Загрузка скриншотов
-            const screenshots = await screenshotService.getScreenshots();
-            DOM.monitoringScreenshotsContainer.innerHTML = '';
-
-            if (screenshots.length === 0) {
-                DOM.monitoringScreenshotsContainer.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1/-1;">
-                        <i class="fas fa-camera"></i>
-                        <h3>No Screenshots</h3>
-                        <p>You Have Not Taken Screenshots or Tethered Your Device Yet</p>
-                    </div>
-                `;
-            } else {
-                screenshots.forEach(screenshot => {
-                    const screenshotEl = document.createElement('div');
-                    screenshotEl.className = 'screenshot-item';
-                    screenshotEl.innerHTML = `
-                        <img src="${screenshot.url}" alt="Screenshot">
-                        <div class="screenshot-info">
-                            <div class="device-name">${screenshot.deviceName}</div>
-                            <div class="screenshot-date">${utils.formatDate(screenshot.createdAt)}</div>
-                            <div class="screenshot-actions">
-                                <button class="btn btn-sm btn-outline" data-action="view">
-                                    <i class="fas fa-eye"></i> Viewing
+                        const deviceCard = document.createElement('div');
+                        deviceCard.className = 'device-card';
+                        deviceCard.innerHTML = `
+                            <div class="device-status ${statusClass}"></div>
+                            <div class="device-name">
+                                <i class="fas fa-mobile-alt"></i> ${device.name}
+                            </div>
+                            <div class="device-info">
+                                <div>${device.model || 'N/A'}</div>
+                                <div>${device.osVersion || 'N/A'}</div>
+                                <div>Status: ${isBlocked ? 'Blocked' : 'Online'}</div>
+                            </div>
+                            <div class="device-actions">
+                                <button class="btn ${buttonClass} btn-sm"
+                                        data-device="${device.deviceId}"
+                                        data-action="${action}">
+                                    <i class="fas ${buttonIcon}"></i>
+                                    ${buttonText}
+                                </button>
+                                <button class="btn btn-outline btn-sm schedule-btn"
+                                        data-device="${device.deviceId}">
+                                    <i class="fas fa-calendar-alt"></i> Schedule
+                                </button>
+                                <button class="btn btn-outline btn-sm stats-btn"
+                                        data-device="${device.deviceId}">
+                                    <i class="fas fa-chart-bar"></i> Stats
                                 </button>
                             </div>
+                        `;
+                        gridElement.appendChild(deviceCard);
+                    });
+                } else {
+                    gridElement.innerHTML = `
+                        <div class="empty-state" ${isDashboard ? 'style="grid-column: 1/-1;"' : ''}>
+                            <i class="fas fa-mobile-alt"></i>
+                            <h3>No Devices Found</h3>
+                            <p>You haven't added any devices yet.</p>
+                            ${isDashboard ? `
+                            <button id="addFirstDeviceBtn" class="btn btn-primary" style="margin-top: 20px;">
+                                <i class="fas fa-plus"></i> Add Your First Device
+                            </button>` : ''}
                         </div>
                     `;
 
-                    DOM.monitoringScreenshotsContainer.appendChild(screenshotEl);
+                    if (isDashboard) {
+                        document.getElementById('addFirstDeviceBtn')?.addEventListener('click', () => {
+                            showPage('devices');
+                        });
+                    }
+                }
+            } catch (error) {
+                showNotification(`Error loading devices: ${error.message}`, 'error');
+            }
+        }
+
+        // Load devices for dashboard
+        async function loadDashboard() {
+            await loadDevicesGrid(devicesGrid, true);
+            loadRecentNotifications();
+        }
+
+        // Load devices for management
+        async function loadManageDevices() {
+            await loadDevicesGrid(manageDevicesGrid);
+        }
+
+        // Load devices page
+        async function loadDevicesPage() {
+            // Generate initial code
+            await generateTetheringCode();
+            // Load devices for management tab
+            await loadManageDevices();
+        }
+
+        // Generate tethering code
+        async function generateTetheringCode() {
+            try {
+                const data = await apiRequest('/api/v1/tethering-code', 'POST');
+                bindingCodeEl.textContent = data.data.code;
+                showNotification('New tethering code generated', 'success');
+            } catch (error) {
+                showNotification(`Error generating code: ${error.message}`, 'error');
+            }
+        }
+
+        // Add new device
+        async function addDevice(deviceData) {
+            try {
+                // Show loading state
+                saveDeviceBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+                saveDeviceBtn.disabled = true;
+
+                // Send request
+                await apiRequest('/api/v1/devices', 'POST', deviceData);
+
+                showNotification(`Device "${deviceData.name}" added successfully`, 'success');
+
+                // Close modal and reset form
+                deviceModal.style.display = 'none';
+                deviceForm.reset();
+
+                // Refresh device lists
+                await Promise.all([loadDashboard(), loadManageDevices()]);
+            } catch (error) {
+                showNotification(`Error adding device: ${error.message}`, 'error');
+            } finally {
+                // Restore button state
+                saveDeviceBtn.innerHTML = 'Add Device';
+                saveDeviceBtn.disabled = false;
+            }
+        }
+
+        // Block/unblock device
+        async function toggleDeviceBlock(deviceId, action) {
+            try {
+                // Find the button and set loading state
+                const button = document.querySelector(`[data-device="${deviceId}"][data-action="${action}"]`);
+                if (button) {
+                    const originalHTML = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                    button.disabled = true;
+
+                    // Send request
+                    await apiRequest(`/api/v1/devices/${deviceId}/${action}`, 'POST');
+
+                    showNotification(`Device ${action === 'block' ? 'blocked' : 'unblocked'}`, 'success');
+
+                    // Refresh device lists
+                    await Promise.all([loadDashboard(), loadManageDevices()]);
+                }
+            } catch (error) {
+                showNotification(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // ==============================================
+        // NEW FUNCTIONALITY: SCHEDULES, STATS, PROFILE, SETTINGS
+        // ==============================================
+
+        // Load schedules
+        async function loadSchedules() {
+            try {
+                const data = await apiRequest('/api/v1/schedules', 'GET');
+                const schedulesList = document.getElementById('schedulesList');
+                schedulesList.innerHTML = '';
+
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(schedule => {
+                        const scheduleItem = document.createElement('div');
+                        scheduleItem.className = 'schedule-item';
+                        scheduleItem.innerHTML = `
+                            <div class="schedule-details">
+                                <h4>${schedule.name}</h4>
+                                <p>${schedule.deviceName} · ${schedule.days.join(', ')} · ${schedule.startTime} - ${schedule.endTime}</p>
+                            </div>
+                            <div class="schedule-actions">
+                                <button class="btn btn-outline btn-sm edit-schedule" data-id="${schedule.id}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline btn-sm delete-schedule" data-id="${schedule.id}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        `;
+                        schedulesList.appendChild(scheduleItem);
+                    });
+                } else {
+                    schedulesList.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-calendar-alt"></i>
+                            <h3>No Schedules Found</h3>
+                            <p>Create your first blocking schedule to get started.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                showNotification(`Error loading schedules: ${error.message}`, 'error');
+            }
+        }
+
+        // ====================== ГРАФИКИ СТАТИСТИКИ ====================== //
+
+        // Функция для форматирования времени
+        function formatTime(minutes) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return `${hours}h ${mins}m`;
+        }
+
+        // Функция для отображения основного графика использования
+        function renderUsageChart(chartData, chartType = 'bar') {
+            const ctx = document.getElementById('usageChart').getContext('2d');
+
+            // Удаляем предыдущий график, если существует
+            if (usageChartInstance) {
+                usageChartInstance.destroy();
+            }
+
+            // Определяем цвет в зависимости от типа графика
+            const bgColor = chartType === 'bar' ?
+                'rgba(67, 97, 238, 0.7)' :
+                'rgba(67, 97, 238, 0.2)';
+
+            const borderColor = 'rgba(67, 97, 238, 1)';
+
+            const datasets = [{
+                label: 'Screen Time (minutes)',
+                data: chartData.data,
+                backgroundColor: bgColor,
+                borderColor: borderColor,
+                borderWidth: 2,
+                fill: chartType === 'line',
+                tension: 0.4
+            }];
+
+            if (chartType === 'bar') {
+                datasets[0].borderRadius = 5;
+            }
+
+            usageChartInstance = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: chartData.labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${formatTime(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Minutes'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return formatTime(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Функция для отображения использования приложений
+        function renderAppUsageChart(appData) {
+            const ctx = document.getElementById('appUsageChart').getContext('2d');
+
+            if (appUsageChartInstance) {
+                appUsageChartInstance.destroy();
+            }
+
+            // Сортируем приложения по времени использования
+            const sortedApps = [...appData].sort((a, b) => b.minutes - a.minutes);
+            // Берем топ-7 приложений, остальное группируем в "Other"
+            const topApps = sortedApps.slice(0, 7);
+            const otherMinutes = sortedApps.slice(7).reduce((sum, app) => sum + app.minutes, 0);
+
+            const labels = topApps.map(app => app.name);
+            const data = topApps.map(app => app.minutes);
+
+            if (otherMinutes > 0) {
+                labels.push('Other Apps');
+                data.push(otherMinutes);
+            }
+
+            // Генерация цветов
+            const backgroundColors = [
+                'rgba(67, 97, 238, 0.7)',
+                'rgba(76, 201, 240, 0.7)',
+                'rgba(247, 37, 133, 0.7)',
+                'rgba(255, 158, 0, 0.7)',
+                'rgba(106, 76, 147, 0.7)',
+                'rgba(63, 55, 201, 0.7)',
+                'rgba(0, 168, 107, 0.7)',
+                'rgba(128, 128, 128, 0.7)'
+            ];
+
+            appUsageChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: backgroundColors.slice(0, labels.length),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 15,
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${context.label}: ${formatTime(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        // Функция для отображения анализа по категориям
+        function renderCategoryChart(categoryData) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+
+            if (categoryChartInstance) {
+                categoryChartInstance.destroy();
+            }
+
+            // Группируем данные по категориям
+            const categories = {};
+            categoryData.forEach(app => {
+                if (!categories[app.category]) {
+                    categories[app.category] = 0;
+                }
+                categories[app.category] += app.minutes;
+            });
+
+            // Преобразуем в массив для графика
+            const labels = Object.keys(categories);
+            const data = Object.values(categories);
+
+            // Генерация цветов
+            const backgroundColors = labels.map((_, i) => {
+                const hue = (i * 137.5) % 360; // Золотой угол для распределения цветов
+                return `hsla(${hue}, 70%, 65%, 0.7)`;
+            });
+
+            categoryChartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 15,
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${context.label}: ${formatTime(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Функция для отображения сравнения недель
+        function renderComparisonChart(comparisonData) {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+
+            if (comparisonChartInstance) {
+                comparisonChartInstance.destroy();
+            }
+
+            comparisonChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: comparisonData.labels,
+                    datasets: [{
+                        label: 'This Week',
+                        data: comparisonData.currentWeek,
+                        backgroundColor: 'rgba(67, 97, 238, 0.7)',
+                        borderColor: 'rgba(67, 97, 238, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Previous Week',
+                        data: comparisonData.previousWeek,
+                        backgroundColor: 'rgba(108, 117, 125, 0.7)',
+                        borderColor: 'rgba(108, 117, 125, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Minutes'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return formatTime(value);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${formatTime(context.raw)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Загрузка статистики
+        async function loadStats() {
+            try {
+                const deviceFilter = document.getElementById('statsDeviceFilter').value;
+                const timeFilter = document.getElementById('statsTimeFilter').value;
+
+                const data = await apiRequest(`/api/v1/stats?device=${deviceFilter}&period=${timeFilter}`, 'GET');
+
+                // Обновляем карточки
+                document.getElementById('totalUsage').textContent = data.data.totalUsage;
+                document.getElementById('mostUsedDevice').textContent = data.data.mostUsedDevice || '-';
+                document.getElementById('avgDailyUsage').textContent = data.data.avgDailyUsage;
+                document.getElementById('blockedTime').textContent = data.data.blockedTime;
+
+                // Определяем тип графика
+                const activeTypeBtn = document.querySelector('.chart-type-selector .btn.active');
+                const chartType = activeTypeBtn ? activeTypeBtn.dataset.type : 'bar';
+
+                // Рендерим графики
+                renderUsageChart(data.data.usageData, chartType);
+
+                if (data.data.appUsage) {
+                    renderAppUsageChart(data.data.appUsage);
+                }
+
+                if (data.data.categoryData) {
+                    renderCategoryChart(data.data.categoryData);
+                }
+
+                // Обновляем сравнение недель
+                document.getElementById('currentWeek').textContent = formatTime(data.data.comparisonData.currentWeekTotal);
+                document.getElementById('previousWeek').textContent = formatTime(data.data.comparisonData.previousWeekTotal);
+
+                const trend = data.data.comparisonData.trendPercentage;
+                const trendElement = document.getElementById('trendPercentage');
+                trendElement.textContent = `${Math.abs(trend)}%`;
+                trendElement.className = 'trend-indicator ' +
+                    (trend > 0 ? 'trend-up' : trend < 0 ? 'trend-down' : 'trend-neutral');
+
+                // Рендерим график сравнения
+                renderComparisonChart(data.data.comparisonData);
+
+            } catch (error) {
+                showNotification(`Error loading statistics: ${error.message}`, 'error');
+            }
+        }
+
+        // Load profile
+        async function loadProfile() {
+            try {
+                const data = await apiRequest('/api/v1/profile', 'GET');
+                document.getElementById('profileFirstName').value = data.data.firstName;
+                document.getElementById('profileLastName').value = data.data.lastName;
+                document.getElementById('profileEmail').value = data.data.email;
+                document.getElementById('profilePhone').value = data.data.phone || '';
+                document.getElementById('profileTimezone').value = data.data.timezone;
+            } catch (error) {
+                showNotification(`Error loading profile: ${error.message}`, 'error');
+            }
+        }
+
+        // Update profile
+        async function updateProfile(profileData) {
+            try {
+                await apiRequest('/api/v1/profile', 'PUT', profileData);
+                showNotification('Profile updated successfully!', 'success');
+
+                // Update user in local storage
+                const user = getCurrentUser();
+                if (user) {
+                    user.firstName = profileData.firstName;
+                    user.lastName = profileData.lastName;
+                    localStorage.setItem(USER_KEY, JSON.stringify(user));
+                    loadUserInfo();
+                }
+            } catch (error) {
+                showNotification(`Error updating profile: ${error.message}`, 'error');
+            }
+        }
+
+        // Change password
+        async function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showNotification('Please fill all password fields', 'error');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showNotification('New passwords do not match', 'error');
+                return;
+            }
+
+            try {
+                changePasswordBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Changing...';
+                changePasswordBtn.disabled = true;
+
+                await apiRequest('/api/v1/change-password', 'POST', {
+                    currentPassword,
+                    newPassword
+                });
+
+                showNotification('Password changed successfully!', 'success');
+                document.getElementById('currentPassword').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+            } catch (error) {
+                showNotification(`Error changing password: ${error.message}`, 'error');
+            } finally {
+                changePasswordBtn.innerHTML = 'Change Password';
+                changePasswordBtn.disabled = false;
+            }
+        }
+
+        // Load notifications
+        async function loadNotifications() {
+            try {
+                const data = await apiRequest('/api/v1/notifications', 'GET');
+                const notificationsList = document.getElementById('notificationsList');
+                notificationsList.innerHTML = '';
+
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(notification => {
+                        const iconClass = notification.type === 'alert' ? 'fa-exclamation-triangle text-warning' :
+                                        notification.type === 'info' ? 'fa-info-circle text-primary' :
+                                        'fa-check-circle text-success';
+
+                        const notificationItem = document.createElement('div');
+                        notificationItem.className = 'notification-item';
+                        notificationItem.innerHTML = `
+                            <div class="notification-icon">
+                                <i class="fas ${iconClass}"></i>
+                            </div>
+                            <div class="notification-content">
+                                <h4>${notification.title}</h4>
+                                <p>${notification.message}</p>
+                                <div class="notification-time">${formatNotificationTime(notification.created_at)}</div>
+                            </div>
+                        `;
+                        notificationsList.appendChild(notificationItem);
+                    });
+                } else {
+                    notificationsList.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-bell-slash"></i>
+                            <h3>No Notifications</h3>
+                            <p>You don't have any notifications yet.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                showNotification(`Error loading notifications: ${error.message}`, 'error');
+            }
+        }
+
+        // Load recent notifications for dashboard
+        async function loadRecentNotifications() {
+            try {
+                const data = await apiRequest('/api/v1/notifications?limit=3', 'GET');
+                recentNotifications.innerHTML = '';
+
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(notification => {
+                        const iconClass = notification.type === 'alert' ? 'fa-exclamation-triangle text-warning' :
+                                        notification.type === 'info' ? 'fa-info-circle text-primary' :
+                                        'fa-check-circle text-success';
+
+                        const notificationItem = document.createElement('div');
+                        notificationItem.className = 'notification-item';
+                        notificationItem.innerHTML = `
+                            <div class="notification-icon">
+                                <i class="fas ${iconClass}"></i>
+                            </div>
+                            <div class="notification-content">
+                                <h4>${notification.title}</h4>
+                                <p>${notification.message}</p>
+                                <div class="notification-time">${formatNotificationTime(notification.created_at)}</div>
+                            </div>
+                        `;
+                        recentNotifications.appendChild(notificationItem);
+                    });
+                } else {
+                    recentNotifications.innerHTML = `
+                        <div class="text-center py-3 text-muted">
+                            No recent notifications
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                // Fail silently for dashboard
+            }
+        }
+
+        // Format notification time
+        function formatNotificationTime(timestamp) {
+            const now = new Date();
+            const notificationDate = new Date(timestamp);
+            const diffHours = Math.floor((now - notificationDate) / (1000 * 60 * 60));
+
+            if (diffHours < 24) {
+                return notificationDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            } else {
+                return notificationDate.toLocaleDateString();
+            }
+        }
+
+        // Clear all notifications
+        async function clearAllNotifications() {
+            try {
+                await apiRequest('/api/v1/notifications', 'DELETE');
+                showNotification('All notifications cleared', 'success');
+                loadNotifications();
+                loadRecentNotifications();
+            } catch (error) {
+                showNotification(`Error clearing notifications: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize time pickers
+        function initTimePickers() {
+            flatpickr('.time-picker', {
+                enableTime: true,
+                noCalendar: true,
+                dateFormat: "H:i",
+                time_24hr: true
+            });
+        }
+
+        // Initialize chart listeners
+        function initChartListeners() {
+            // Переключение типа графика
+            document.querySelectorAll('.chart-type-selector .btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.chart-type-selector .btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+
+                    // Перерисовываем график с новым типом
+                    loadStats();
+                });
+            });
+
+            // Показать/скрыть детали приложений
+            toggleAppChartBtn.addEventListener('click', function() {
+                const isVisible = appUsageContainer.style.display !== 'none';
+
+                appUsageContainer.style.display = isVisible ? 'none' : 'block';
+                this.innerHTML = isVisible ?
+                    '<i class="fas fa-chevron-down"></i> Show Details' :
+                    '<i class="fas fa-chevron-up"></i> Hide Details';
+
+                // Если показываем и график еще не отрисован, загружаем данные
+                if (!isVisible && !appUsageChartInstance) {
+                    loadStats();
+                }
+            });
+
+            // Фильтры
+            document.getElementById('statsDeviceFilter').addEventListener('change', loadStats);
+            document.getElementById('statsTimeFilter').addEventListener('change', loadStats);
+        }
+
+        // Event listeners
+        function initEventListeners() {
+            // Registration form
+            if (registerForm) {
+                registerForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+
+                    const userData = {
+                        firstName: document.getElementById('firstName').value,
+                        lastName: document.getElementById('lastName').value,
+                        email: document.getElementById('registerEmail').value,
+                        password: document.getElementById('registerPassword').value,
+                        timezone: document.getElementById('timezone').value,
+                        phone: document.getElementById('phone').value
+                    };
+
+                    registerUser(userData);
                 });
             }
-        } catch (error) {
-            utils.showNotification(`Error loading monitoring data: ${error.message}`, 'error');
-        }
-    }
 
-    // Инициализация приложения
-    function initApp() {
-        // Инициализация темы
-        const themeToggle = document.getElementById('themeToggle');
-        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const savedTheme = localStorage.getItem('theme');
+            // Login form
+            if (loginForm) {
+                loginForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
 
-        if (savedTheme === 'dark' || (!savedTheme && prefersDarkScheme)) {
-            document.body.classList.add('dark-theme');
-            themeToggle.checked = true;
-        }
+                    const credentials = {
+                        email: document.getElementById('loginEmail').value,
+                        password: document.getElementById('loginPassword').value
+                    };
 
-        themeToggle.addEventListener('change', function() {
-            if (this.checked) {
-                document.body.classList.add('dark-theme');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                document.body.classList.remove('dark-theme');
-                localStorage.setItem('theme', 'light');
+                    loginUser(credentials);
+                });
             }
-        });
 
-        // Обработчики событий
-        setupEventListeners();
+            // Show register page
+            if (showRegister) {
+                showRegister.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showPage('register');
+                });
+            }
 
-        // Проверка авторизации
-        const currentUser = userService.getCurrentUser();
+            // Show login page
+            if (showLogin) {
+                showLogin.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showPage('login');
+                });
+            }
 
-        if (currentUser) {
-            loadUserInfo();
-            loadDashboard();
-            utils.navigateToPage('dashboard');
-        } else {
-            utils.navigateToPage('login');
-        }
-    }
+            // Navigation
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = link.getAttribute('data-page');
+                    showPage(page);
+                });
+            });
 
-    // Загрузка информации о пользователе
-    function loadUserInfo() {
-        const user = userService.getCurrentUser();
-        if (!user) return;
+            // Add device button
+            addDeviceBtn.addEventListener('click', () => {
+                deviceModal.style.display = 'flex';
+            });
 
-        DOM.userInfo.innerHTML = `
-            <div class="user-avatar">${utils.getInitials(user.firstName)}</div>
-            <div>${user.firstName} ${user.lastName}</div>
-        `;
-    }
-
-    // Настройка обработчиков событий
-    function setupEventListeners() {
-        // Навигация
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', (e) => {
+            // Save device button
+            saveDeviceBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                const page = link.getAttribute('data-page');
-                utils.navigateToPage(page);
-            });
-        });
 
-        // Регистрация
-        DOM.registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+                const deviceData = {
+                    name: document.getElementById('deviceName').value,
+                    model: document.getElementById('deviceModel').value,
+                    osVersion: document.getElementById('deviceOS').value,
+                    tetheringCode: document.getElementById('tetheringCode').value
+                };
 
-            const userData = {
-                name: document.getElementById('regName').value,
-                email: document.getElementById('regEmail').value,
-                password: document.getElementById('regPassword').value,
-                confirmPassword: document.getElementById('regConfirmPassword').value
-            };
-
-            const result = await userService.register(userData);
-
-            if (result.success) {
-                utils.showNotification('Registration was done successfully');
-                utils.navigateToPage('login');
-            } else {
-                utils.showNotification(result.message, 'error');
-            }
-        });
-
-        // Авторизация
-        DOM.loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-
-            const result = await userService.login(email, password);
-
-            if (result.success) {
-                utils.showNotification('Log In was done successfully');
-                loadUserInfo();
-                loadDashboard();
-                utils.navigateToPage('dashboard');
-            } else {
-                utils.showNotification(result.message, 'error');
-            }
-        });
-
-        // Переключение между регистрацией и авторизацией
-        DOM.showRegister.addEventListener('click', (e) => {
-            e.preventDefault();
-            utils.navigateToPage('register');
-        });
-
-        DOM.showLogin.addEventListener('click', (e) => {
-            e.preventDefault();
-            utils.navigateToPage('login');
-        });
-
-        // Выход из системы
-        DOM.logoutBtn.addEventListener('click', () => {
-            userService.logout();
-            utils.navigateToPage('login');
-        });
-
-        // Добавление устройства
-        DOM.addDeviceBtn.addEventListener('click', () => {
-            utils.openModal('deviceModal');
-        });
-
-        // Сохранение устройства
-        DOM.saveDeviceBtn.addEventListener('click', async () => {
-            const deviceData = {
-                name: document.getElementById('deviceName').value,
-                model: document.getElementById('deviceModel').value,
-                osVersion: document.getElementById('deviceOS').value,
-                deviceType: 'phone' // По умолчанию
-            };
-
-            try {
-                const newDevice = await deviceService.addDevice(deviceData);
-                utils.showNotification(`Device "${newDevice.name}" was added successfully`);
-                utils.closeModal('deviceModal');
-                utils.openModal('deviceSuccessModal');
-                loadDashboard();
-            } catch (error) {
-                utils.showNotification(`Error adding device: ${error.message}`, 'error');
-            }
-        });
-
-        // Генерация нового кода привязки
-        DOM.generateNewCodeBtn.addEventListener('click', async () => {
-            try {
-                const data = await api.generateTetheringCode();
-                DOM.bindingCode.textContent = data.code;
-                utils.showNotification('New code generated successfully');
-            } catch (error) {
-                utils.showNotification(`Error generating code: ${error.message}`, 'error');
-            }
-        });
-
-        // Закрытие модальных окон
-        document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', () => {
-                utils.closeModal('deviceModal');
-                utils.closeModal('screenshotModal');
-                utils.closeModal('categoryManagerModal');
-                utils.closeModal('deviceSuccessModal');
-            });
-        });
-
-        // Запрос скриншота
-        DOM.requestScreenshotBtn.addEventListener('click', () => {
-            utils.showNotification('Screenshot request sent');
-        });
-
-        // Блокировка устройства
-        DOM.blockDeviceBtn.addEventListener('click', async () => {
-            try {
-                const devices = await deviceService.getUserDevices();
-                if (devices.length === 0) {
-                    utils.showNotification('You have no tethered devices', 'error');
+                // Basic validation
+                if (!deviceData.name || !deviceData.tetheringCode) {
+                    showNotification('Device name and tethering code are required', 'error');
                     return;
                 }
 
-                // Для демо: блокируем первое устройство
-                await deviceService.blockDevice(devices[0].device_id);
-                utils.showNotification(`Device "${devices[0].name}" Is Blocked`);
-                loadDashboard();
-            } catch (error) {
-                utils.showNotification(`Error blocking device: ${error.message}`, 'error');
-            }
-        });
+                addDevice(deviceData);
+            });
 
-        // Разблокировка всех устройств
-        DOM.unblockAllBtn.addEventListener('click', async () => {
-            try {
-                const devices = await deviceService.getUserDevices();
-                for (const device of devices) {
-                    await deviceService.unblockDevice(device.device_id);
+            // Close modals
+            closeModalBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    deviceModal.style.display = 'none';
+                    scheduleModal.style.display = 'none';
+                    deviceForm.reset();
+                    scheduleForm.reset();
+                });
+            });
+
+            // Close modal when clicking outside
+            window.addEventListener('click', (e) => {
+                if (e.target === deviceModal) {
+                    deviceModal.style.display = 'none';
+                    deviceForm.reset();
                 }
-                utils.showNotification('All devices were unblocked');
-                loadDashboard();
-            } catch (error) {
-                utils.showNotification(`Error unblocking devices: ${error.message}`, 'error');
-            }
-        });
-    }
+                if (e.target === scheduleModal) {
+                    scheduleModal.style.display = 'none';
+                    scheduleForm.reset();
+                }
+            });
 
-    // Запуск приложения
-    window.addEventListener('DOMContentLoaded', initApp);
-</script>
+            // Generate new code
+            generateNewCodeBtn.addEventListener('click', generateTetheringCode);
+
+            // Tab switching
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabPanes.forEach(pane => pane.classList.remove('active'));
+
+                    tab.classList.add('active');
+                    const tabId = tab.getAttribute('data-tab');
+                    document.getElementById(`${tabId}Tab`).classList.add('active');
+                });
+            });
+
+            // Delegated event for device actions
+            document.addEventListener('click', (e) => {
+                const blockBtn = e.target.closest('[data-action="block"]');
+                const unblockBtn = e.target.closest('[data-action="unblock"]');
+                const scheduleBtn = e.target.closest('.schedule-btn');
+                const statsBtn = e.target.closest('.stats-btn');
+
+                if (blockBtn || unblockBtn) {
+                    const btn = blockBtn || unblockBtn;
+                    const deviceId = btn.getAttribute('data-device');
+                    const action = btn.getAttribute('data-action');
+
+                    toggleDeviceBlock(deviceId, action);
+                }
+
+                if (scheduleBtn) {
+                    const deviceId = scheduleBtn.getAttribute('data-device');
+                    // For now, just show schedule page
+                    showPage('schedule');
+                }
+
+                if (statsBtn) {
+                    const deviceId = statsBtn.getAttribute('data-device');
+                    document.getElementById('statsDeviceFilter').value = deviceId;
+                    showPage('stats');
+                    loadStats();
+                }
+            });
+
+            // Add schedule button
+            addScheduleBtn.addEventListener('click', () => {
+                scheduleModal.style.display = 'flex';
+                initTimePickers();
+            });
+
+            // Save schedule button
+            saveScheduleBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+
+                const scheduleData = {
+                    deviceId: document.getElementById('scheduleDevice').value,
+                    name: document.getElementById('scheduleName').value,
+                    startTime: document.getElementById('scheduleStart').value,
+                    endTime: document.getElementById('scheduleEnd').value,
+                    days: Array.from(document.querySelectorAll('input[name="day"]:checked')).map(cb => cb.value),
+                    type: document.getElementById('scheduleType').value
+                };
+
+                // Basic validation
+                if (!scheduleData.deviceId || !scheduleData.name || !scheduleData.startTime || !scheduleData.endTime || scheduleData.days.length === 0) {
+                    showNotification('Please fill all required fields', 'error');
+                    return;
+                }
+
+                try {
+                    saveScheduleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                    saveScheduleBtn.disabled = true;
+
+                    await apiRequest('/api/v1/schedules', 'POST', scheduleData);
+
+                    showNotification('Schedule created successfully', 'success');
+                    scheduleModal.style.display = 'none';
+                    scheduleForm.reset();
+                    loadSchedules();
+                } catch (error) {
+                    showNotification(`Error creating schedule: ${error.message}`, 'error');
+                } finally {
+                    saveScheduleBtn.innerHTML = 'Save Schedule';
+                    saveScheduleBtn.disabled = false;
+                }
+            });
+
+            // Profile form
+            profileForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                const profileData = {
+                    firstName: document.getElementById('profileFirstName').value,
+                    lastName: document.getElementById('profileLastName').value,
+                    phone: document.getElementById('profilePhone').value,
+                    timezone: document.getElementById('profileTimezone').value
+                };
+
+                updateProfile(profileData);
+            });
+
+            // Change password
+            changePasswordBtn.addEventListener('click', changePassword);
+
+            // Clear notifications
+            clearNotificationsBtn.addEventListener('click', clearAllNotifications);
+
+            // View all notifications
+            viewAllNotifications.addEventListener('click', (e) => {
+                e.preventDefault();
+                showPage('notifications');
+            });
+
+            // Initialize chart listeners
+            initChartListeners();
+        }
+
+        // Initialize app
+        async function initApp() {
+            console.log("Initializing app...");
+
+            // Check server connection
+            try {
+                await apiRequest('/api/v1/ping', 'GET');
+                console.log("Server is available");
+            } catch (error) {
+                showNotification("Cannot connect to server. Please try again later.", "error");
+                return;
+            }
+
+            const user = getCurrentUser();
+            if (user) {
+                loadUserInfo();
+                showPage('dashboard');
+            } else {
+                showPage('login');
+            }
+
+            initEventListeners();
+        }
+
+        // Start the app
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
 </body>
 </html>
