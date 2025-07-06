@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form
-from ai_worker import moderate_screenshot
+from backend.ai_worker import moderate_screenshot
 
 app = FastAPI()
 
