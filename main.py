@@ -36,6 +36,8 @@ async def lifespan(app: FastAPI):
     yield
 
 
+
+
 app = FastAPI(lifespan=lifespan)
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -50,6 +52,17 @@ app.mount("/uploads", StaticFiles(directory=uploads_directory))
 
 bearer_scheme = HTTPBearer()
 
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid or missing token: " + str(e))
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    return user_id
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -124,18 +137,36 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     )
     return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
 
+@app.post("/api/v1/login-via-token")
+async def login_via_token(payload: LoginViaTokenRequest, db: Session = Depends(get_db)):
+    code = db.query(TetheringCode).filter(TetheringCode.code == payload.tetheringCode).first()
+    if not code:
+        return JSONResponse(status_code=401, content={
+            "status": "error",
+            "code": 401,
+            "message": "Invalid code"
+        })
+    user = db.query(User).filter(User.user_id == code.user_id).first()
+    now = datetime.now()
+    expire = now + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    token = jwt.encode({
+        "sub": user.user_id,
+        "email": user.email,
+        "iat": int(now.timestamp()),
+        "exp": int(expire.timestamp())
+    }, SECRET_KEY, algorithm=ALGORITHM)
+    data = LoginData(
+        token=token,
+        userId=user.user_id,
+        email=user.email,
+        firstName=user.firstName,
+        lastName=user.lastName,
+        expiresAt=expire.isoformat()
+    )
+    return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
-    try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-    except ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except Exception as e:
-        raise HTTPException(status_code=401, detail="Invalid or missing token: " + str(e))
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token payload")
-    return user_id
+
+
 
 
 def code_generator() -> str:

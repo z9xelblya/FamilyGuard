@@ -54,6 +54,19 @@ class LoginData(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class LoginViaTokenRequest(BaseModel):
+    tetheringCode: str
+
+class LoginViaTokenData(BaseModel):
+    token: str
+    userId: str
+    email: EmailStr
+    firstName: str
+    lastName: str
+    expiresAt: str
+
+    model_config = ConfigDict(from_attributes=True)
+
 
 
 class ScreenshotBase(BaseModel):
