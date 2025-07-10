@@ -5,12 +5,13 @@ import random
 import logging
 from datetime import datetime, timedelta, date
 from contextlib import asynccontextmanager
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pathlib import Path
+import shutil
 
 import jwt
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException, status, Request, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Query, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse
@@ -35,6 +36,8 @@ logger = logging.getLogger(__name__)
 # Определяем пути
 current_dir = Path(__file__).resolve().parent
 static_dir = current_dir / "static"
+uploads_dir = current_dir / "uploads"
+os.makedirs(uploads_dir, exist_ok=True)  # Создаем директорию для загрузок
 
 # Создаем базовый класс для моделей
 Base = declarative_base()
@@ -55,6 +58,10 @@ class User(Base):
     notifications = relationship("Notification", back_populates="user")
     statistics = relationship("Statistic", back_populates="user")
     schedules = relationship("Schedule", back_populates="user")
+    categories = relationship("Category", back_populates="user")
+    screenshots = relationship("Screenshot", back_populates="user")
+    screen_times = relationship("ScreenTime", back_populates="user")
+    screen_time_logs = relationship("ScreenTimeLog", back_populates="user")
 
 
 class Device(Base):
@@ -69,6 +76,9 @@ class Device(Base):
     user = relationship("User", back_populates="devices")
     schedules = relationship("Schedule", back_populates="device")
     statistics = relationship("Statistic", back_populates="device")
+    screenshots = relationship("Screenshot", back_populates="device")
+    screen_times = relationship("ScreenTime", back_populates="device")
+    screen_time_logs = relationship("ScreenTimeLog", back_populates="device")
 
 
 class TetheringCode(Base):
@@ -118,6 +128,58 @@ class Statistic(Base):
     blocked_time = Column(Integer, default=0)  # in minutes
     user = relationship("User", back_populates="statistics")
     device = relationship("Device", back_populates="statistics")
+
+
+class Category(Base):
+    __tablename__ = "categories"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey('users.user_id'), nullable=False)
+    name = Column(String, nullable=False)
+    label = Column(String)
+    description = Column(String)
+    restricted = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user = relationship("User", back_populates="categories")
+
+
+class Screenshot(Base):
+    __tablename__ = "screenshots"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey('users.user_id'), nullable=False)
+    device_id = Column(String, ForeignKey('devices.device_id'), nullable=False)
+    image = Column(String, nullable=False)  # Путь к файлу
+    category = Column(String)
+    transaction_id = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user = relationship("User", back_populates="screenshots")
+    device = relationship("Device", back_populates="screenshots")
+
+
+class ScreenTime(Base):
+    __tablename__ = "screen_times"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey('users.user_id'), nullable=False)
+    device_id = Column(String, ForeignKey('devices.device_id'), nullable=False)
+    limit = Column(Integer, nullable=False)  # in minutes
+    schedule_start = Column(String)  # "08:00"
+    schedule_end = Column(String)  # "22:00"
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user = relationship("User", back_populates="screen_times")
+    device = relationship("Device", back_populates="screen_times")
+
+
+class ScreenTimeLog(Base):
+    __tablename__ = "screen_time_logs"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey('users.user_id'), nullable=False)
+    device_id = Column(String, ForeignKey('devices.device_id'), nullable=False)
+    screen_time_id = Column(String, ForeignKey('screen_times.id'), nullable=False)
+    screen_time = Column(Integer, nullable=False)  # in minutes
+    timestamp = Column(DateTime, nullable=False)
+    activity_type = Column(String)  # "app", "web", "total"
+    user = relationship("User", back_populates="screen_time_logs")
+    device = relationship("Device", back_populates="screen_time_logs")
+    screen_time_obj = relationship("ScreenTime")
 
 
 @asynccontextmanager
@@ -215,6 +277,22 @@ class UserResponse(BaseModel):
 
 
 class LoginData(BaseModel):
+    token: str
+    userId: str
+    email: str
+    firstName: str
+    lastName: str
+    expiresAt: str
+
+
+##классы для аппы
+class LoginViaTokenRequest(BaseModel):
+    """Модель запроса для входа по коду привязки"""
+    tetheringCode: str
+
+
+class LoginViaTokenData(BaseModel):
+    """Модель ответа с данными пользователя при входе по коду"""
     token: str
     userId: str
     email: str
@@ -327,6 +405,69 @@ class WebDeviceCreate(BaseModel):
     osVersion: Optional[str] = None
     tetheringCode: str
 
+class CategoryCreate(BaseModel):
+    name: str
+    label: str
+    description: str
+    restricted: bool
+
+
+class CategoryResponse(BaseModel):
+    id: str
+    name: str
+    label: str
+    description: str
+    restricted: bool
+    created_at: str
+
+
+class ScreenshotCreate(BaseModel):
+    category: str
+    transaction_id: str
+    device_id: str
+
+
+class ScreenshotResponse(BaseModel):
+    id: str
+    image: str
+    category: str
+    transaction_id: str
+    device_id: str
+    created_at: str
+
+
+class ScreenTimeCreate(BaseModel):
+    device_id: str
+    limit: int  # in minutes
+    schedule_start: str  # "08:00"
+    schedule_end: str  # "22:00"
+
+
+class ScreenTimeResponse(BaseModel):
+    id: str
+    device_id: str
+    limit: int
+    schedule_start: str
+    schedule_end: str
+    created_at: str
+
+
+class ScreenTimeLogCreate(BaseModel):
+    device_id: str
+    screen_time_id: str
+    screen_time: int  # in minutes
+    timestamp: str
+    activity_type: str
+
+
+class ScreenTimeLogResponse(BaseModel):
+    used_time: int
+    remaining: int
+    limit: int
+    schedule_start: str
+    schedule_end: str
+    last_update: str
+
 
 # Функция для проверки токена
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
@@ -397,7 +538,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(404)
 async def spa_handler(request: Request, exc: HTTPException):
-    """Обработчик для SPA - перенаправляет все запросы на index.html"""
+    """Обратчик для SPA - перенаправляет все запросы на index.html"""
     # Для API-путей возвращаем JSON-ошибку
     if request.url.path.startswith("/api"):
         return JSONResponse(
@@ -528,6 +669,100 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
                 "status": "error",
                 "message": "Internal server error"
             }
+        )
+
+
+##Для Гоши
+@app.post("/api/v1/login-via-token", response_model=SuccessResponse)
+async def login_via_token(
+        payload: LoginViaTokenRequest,
+        db: Session = Depends(get_db)
+):
+    """
+    Аутентификация по коду привязки устройства
+    Возвращает те же данные, что и обычный login, но с другим способом аутентификации
+    """
+    logger.info(f"Attempt to login via tethering code: {payload.tetheringCode}")
+
+    try:
+        now = datetime.utcnow()
+        # Проверяем код на валидность
+        code_entry = db.query(TetheringCode).filter(
+            TetheringCode.code == payload.tetheringCode,
+            TetheringCode.used == False,
+            TetheringCode.expiredAt > now
+        ).first()
+
+        if not code_entry:
+            logger.warning(f"Invalid tethering code: {payload.tetheringCode}")
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "status": "error",
+                    "code": 400,
+                    "message": "Invalid or expired tethering code",
+                    "errors": [{
+                        "field": "tetheringCode",
+                        "message": "The provided code is invalid or has expired"
+                    }]
+                }
+            )
+
+        # Получаем пользователя
+        user = db.query(User).filter(User.user_id == code_entry.user_id).first()
+        if not user:
+            logger.error(f"User not found for code {code_entry.user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Помечаем код как использованный
+        code_entry.used = True
+        db.add(code_entry)
+
+        # Создаем уведомление (в стиле первого кода)
+        notification = Notification(
+            user_id=user.user_id,
+            title="New Device Login",
+            message=f"Logged in via tethering code",
+            type="info"
+        )
+        db.add(notification)
+        db.commit()
+
+        # Генерируем JWT токен
+        expire = now + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+        token = jwt.encode({
+            "sub": user.user_id,
+            "email": user.email,
+            "iat": int(now.timestamp()),
+            "exp": int(expire.timestamp())
+        }, SECRET_KEY, algorithm=ALGORITHM)
+
+        # Формируем ответ
+        response_data = LoginViaTokenData(
+            token=token,
+            userId=user.user_id,
+            email=user.email,
+            firstName=user.firstName,
+            lastName=user.lastName,
+            expiresAt=expire.isoformat()
+        )
+
+        logger.info(f"Successful login via token for user {user.user_id}")
+        return {
+            "status": "success",
+            "data": response_data.dict()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login via token failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
         )
 
 
@@ -1221,8 +1456,551 @@ async def ping():
     return {"status": "success", "message": "pong"}
 
 
+# ========== НОВЫЕ ФУНКЦИИ ИЗ КОДА Степы==========
+
+# Категории приложений
+@app.post("/api/v1/categories", status_code=status.HTTP_201_CREATED)
+async def create_category(
+        payload: CategoryCreate,
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    """Создание новой категории приложений"""
+    logger.info(f"Creating category: {payload.name}")
+    try:
+        category = Category(
+            user_id=user_id,
+            name=payload.name,
+            label=payload.label,
+            description=payload.description,
+            restricted=payload.restricted
+        )
+        db.add(category)
+        db.commit()
+        db.refresh(category)
+
+        # Создаем уведомление
+        notification = Notification(
+            user_id=user_id,
+            title="New Category Created",
+            message=f"Category '{payload.name}' was created",
+            type="info"
+        )
+        db.add(notification)
+        db.commit()
+
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={
+                "status": "success",
+                "message": "Category created",
+                "data": {
+                    "id": category.id,
+                    "name": category.name,
+                    "label": category.label,
+                    "description": category.description,
+                    "restricted": category.restricted,
+                    "created_at": category.created_at.isoformat()
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Create category error: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "status": "error",
+                "message": "Internal server error"
+            }
+        )
+
+
+@app.get("/api/v1/categories", response_model=List[CategoryResponse])
+async def get_categories(
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    """Получение списка категорий"""
+    try:
+        categories = db.query(Category).filter(Category.user_id == user_id).all()
+        return [
+            CategoryResponse(
+                id=cat.id,
+                name=cat.name,
+                label=cat.label,
+                description=cat.description,
+                restricted=cat.restricted,
+                created_at=cat.created_at.isoformat()
+            ) for cat in categories
+        ]
+    except Exception as e:
+        logger.error(f"Get categories error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@app.delete("/api/v1/categories/{category_id}")
+async def delete_category(
+        category_id: str,
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    """Удаление категории"""
+    logger.info(f"Deleting category: {category_id}")
+    try:
+        category = db.query(Category).filter(
+            Category.id == category_id,
+            Category.user_id == user_id
+        ).first()
+        if not category:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={
+                    "status": "error",
+                    "code": 404,
+                    "message": "Category not found"
+                }
+            )
+
+        db.delete(category)
+
+        # Создаем уведомление
+        notification = Notification(
+            user_id=user_id,
+            title="Category Deleted",
+            message=f"Category '{category.name}' was deleted",
+            type="warning"
+        )
+        db.add(notification)
+        db.commit()
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "status": "success",
+                "message": "Category deleted"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Delete category error: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "status": "error",
+                "message": "Internal server error"
+            }
+        )
+
+
+# Скриншоты
+@app.post("/api/v1/screenshots", status_code=status.HTTP_201_CREATED)
+async def upload_screenshot(
+        category: str = Form(...),
+        transaction_id: str = Form(...),
+        device_id: str = Form(...),
+        file: UploadFile = File(...),
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    """Загрузка скриншота"""
+    logger.info(f"Uploading screenshot for device: {device_id}")
+    try:
+        # Проверяем существование устройства
+        device = db.query(Device).filter(
+            Device.device_id == device_id,
+            Device.user_id == user_id
+        ).first()
+        if not device:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={
+                    "status": "error",
+                    "code": 404,
+                    "message": "Device not found"
+                }
+            )
+
+        # Сохраняем файл
+        file_ext = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
+        filename = f"{uuid.uuid4().hex}{file_ext}"
+        file_path = os.path.join(uploads_dir, filename)
+
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Создаем запись в БД
+        screenshot = Screenshot(
+            user_id=user_id,
+            device_id=device_id,
+            image=filename,  # Сохраняем только имя файла
+            category=category,
+            transaction_id=transaction_id
+        )
+        db.add(screenshot)
+
+        # Создаем уведомление
+        notification = Notification(
+            user_id=user_id,
+            title="New Screenshot",
+            message=f"Screenshot uploaded from {device.name}",
+            type="info"
+        )
+        db.add(notification)
+        db.commit()
+        db.refresh(screenshot)
+
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={
+                "status": "success",
+                "message": "Screenshot uploaded",
+                "data": {
+                    "id": screenshot.id,
+                    "image": f"/uploads/{filename}",
+                    "category": screenshot.category,
+                    "transaction_id": screenshot.transaction_id,
+                    "device_id": screenshot.device_id,
+                    "created_at": screenshot.created_at.isoformat()
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Upload screenshot error: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "status": "error",
+                "message": "Internal server error"
+            }
+        )
+
+
+# Управление экранным временем
+@app.post("/api/v1/screen-time", status_code=status.HTTP_201_CREATED)
+async def create_screen_time(
+        payload: ScreenTimeCreate,
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    """Создание ограничения экранного времени"""
+    logger.info(f"Creating screen time limit for device: {payload.device_id}")
+    try:
+        # Проверяем существование устройства
+        device = db.query(Device).filter(
+            Device.device_id == payload.device_id,
+            Device.user_id == user_id
+        ).first()
+        if not device:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={
+                    "status": "error",
+                    "code": 404,
+                    "message": "Device not found"
+                }
+            )
+
+        screen_time = ScreenTime(
+            user_id=user_id,
+            device_id=payload.device_id,
+            limit=payload.limit,
+            schedule_start=payload.schedule_start,
+            schedule_end=payload.schedule_end
+        )
+        db.add(screen_time)
+
+        # Создаем уведомление
+        notification = Notification(
+            user_id=user_id,
+            title="Screen Time Limit Set",
+            message=f"Screen time limit set for {device.name}",
+            type="info"
+        )
+        db.add(notification)
+        db.commit()
+        db.refresh(screen_time)
+
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={
+                "status": "success",
+                "message": "Screen time limit created",
+                "data": {
+                    "id": screen_time.id,
+                    "device_id": screen_time.device_id,
+                    "limit": screen_time.limit,
+                    "schedule_start": screen_time.schedule_start,
+                    "schedule_end": screen_time.schedule_end,
+                    "created_at": screen_time.created_at.isoformat()
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Create screen time error: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "status": "error",
+                "message": "Internal server error"
+            }
+        )
+
+
+@app.get("/api/v1/screen-time", response_model=List[ScreenTimeResponse])
+async def get_screen_times(
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    """Получение списка ограничений экранного времени"""
+    try:
+        screen_times = db.query(ScreenTime).filter(
+            ScreenTime.user_id == user_id
+        ).all()
+
+        return [
+            ScreenTimeResponse(
+                id=st.id,
+                device_id=st.device_id,
+                limit=st.limit,
+                schedule_start=st.schedule_start,
+                schedule_end=st.schedule_end,
+                created_at=st.created_at.isoformat()
+            ) for st in screen_times
+        ]
+    except Exception as e:
+        logger.error(f"Get screen times error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@app.put("/api/v1/screen-time/{screen_time_id}")
+async def update_screen_time(
+        screen_time_id: str,
+        payload: ScreenTimeCreate,
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    """Обновление ограничения экранного времени"""
+    logger.info(f"Updating screen time limit: {screen_time_id}")
+    try:
+        screen_time = db.query(ScreenTime).filter(
+            ScreenTime.id == screen_time_id,
+            ScreenTime.user_id == user_id
+        ).first()
+        if not screen_time:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={
+                    "status": "error",
+                    "code": 404,
+                    "message": "Screen time limit not found"
+                }
+            )
+
+        # Проверяем существование устройства
+        device = db.query(Device).filter(
+            Device.device_id == payload.device_id,
+            Device.user_id == user_id
+        ).first()
+        if not device:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={
+                    "status": "error",
+                    "code": 404,
+                    "message": "Device not found"
+                }
+            )
+
+        screen_time.device_id = payload.device_id
+        screen_time.limit = payload.limit
+        screen_time.schedule_start = payload.schedule_start
+        screen_time.schedule_end = payload.schedule_end
+
+        # Создаем уведомление
+        notification = Notification(
+            user_id=user_id,
+            title="Screen Time Limit Updated",
+            message=f"Screen time limit updated for {device.name}",
+            type="info"
+        )
+        db.add(notification)
+        db.commit()
+        db.refresh(screen_time)
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "status": "success",
+                "message": "Screen time limit updated",
+                "data": {
+                    "id": screen_time.id,
+                    "device_id": screen_time.device_id,
+                    "limit": screen_time.limit,
+                    "schedule_start": screen_time.schedule_start,
+                    "schedule_end": screen_time.schedule_end,
+                    "created_at": screen_time.created_at.isoformat()
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Update screen time error: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "status": "error",
+                "message": "Internal server error"
+            }
+        )
+
+
+@app.delete("/api/v1/screen-time/{screen_time_id}")
+async def delete_screen_time(
+        screen_time_id: str,
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    """Удаление ограничения экранного времени"""
+    logger.info(f"Deleting screen time limit: {screen_time_id}")
+    try:
+        screen_time = db.query(ScreenTime).filter(
+            ScreenTime.id == screen_time_id,
+            ScreenTime.user_id == user_id
+        ).first()
+        if not screen_time:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={
+                    "status": "error",
+                    "code": 404,
+                    "message": "Screen time limit not found"
+                }
+            )
+
+        device_name = screen_time.device.name if screen_time.device else "Unknown device"
+
+        db.delete(screen_time)
+
+        # Создаем уведомление
+        notification = Notification(
+            user_id=user_id,
+            title="Screen Time Limit Removed",
+            message=f"Screen time limit removed for {device_name}",
+            type="warning"
+        )
+        db.add(notification)
+        db.commit()
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "status": "success",
+                "message": "Screen time limit deleted"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Delete screen time error: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "status": "error",
+                "message": "Internal server error"
+            }
+        )
+
+
+@app.post("/api/v1/screen-time/log", status_code=status.HTTP_201_CREATED)
+async def log_screen_time(
+        payload: ScreenTimeLogCreate,
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    """Логирование экранного времени"""
+    logger.info(f"Logging screen time for device: {payload.device_id}")
+    try:
+        # Проверяем существование устройства
+        device = db.query(Device).filter(
+            Device.device_id == payload.device_id,
+            Device.user_id == user_id
+        ).first()
+        if not device:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={
+                    "status": "error",
+                    "code": 404,
+                    "message": "Device not found"
+                }
+            )
+
+        # Проверяем существование ограничения
+        screen_time = db.query(ScreenTime).filter(
+            ScreenTime.id == payload.screen_time_id,
+            ScreenTime.user_id == user_id
+        ).first()
+        if not screen_time:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={
+                    "status": "error",
+                    "code": 404,
+                    "message": "Screen time limit not found"
+                }
+            )
+
+        # Создаем запись лога
+        log = ScreenTimeLog(
+            user_id=user_id,
+            device_id=payload.device_id,
+            screen_time_id=payload.screen_time_id,
+            screen_time=payload.screen_time,
+            timestamp=datetime.fromisoformat(payload.timestamp),
+            activity_type=payload.activity_type
+        )
+        db.add(log)
+        db.commit()
+
+        # Вычисляем использованное и оставшееся время
+        logs = db.query(ScreenTimeLog).filter(
+            ScreenTimeLog.screen_time_id == payload.screen_time_id
+        ).all()
+
+        used_time = sum(log.screen_time for log in logs)
+        remaining = max(0, screen_time.limit - used_time)
+
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={
+                "status": "success",
+                "message": "Screen time logged",
+                "data": {
+                    "used_time": used_time,
+                    "remaining": remaining,
+                    "limit": screen_time.limit,
+                    "schedule_start": screen_time.schedule_start,
+                    "schedule_end": screen_time.schedule_end,
+                    "last_update": datetime.utcnow().isoformat()
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Log screen time error: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "status": "error",
+                "message": "Internal server error"
+            }
+        )
+
+
 # Монтирование статики
 app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 # Запуск сервера
 if __name__ == "__main__":
