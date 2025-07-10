@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, root_validator, model_validator, Field, ConfigDict
@@ -54,7 +53,20 @@ class LoginData(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+################Для Гоши для коннекта##################
+class LoginViaTokenRequest(BaseModel):
+    tetheringCode: str
 
+class LoginViaTokenData(BaseModel):
+    token: str
+    userId: str
+    email: EmailStr
+    firstName: str
+    lastName: str
+    expiresAt: str
+
+    model_config = ConfigDict(from_attributes=True)
+########################################################
 
 class ScreenshotBase(BaseModel):
     category: str
@@ -63,7 +75,6 @@ class ScreenshotBase(BaseModel):
 
 class ScreenshotCreate(ScreenshotBase):
     pass
-
 
 class ScreenshotResponse(ScreenshotBase):
     id: str
