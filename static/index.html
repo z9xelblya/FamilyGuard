@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FamilyGuard: Parental Control</title>
+    <title>FamilyGuard: Advanced Parental Control</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
             --primary: #4361ee;
@@ -35,6 +36,17 @@
             --text-secondary: #6c757d;
         }
 
+        .dark-theme {
+            --bg-body: linear-gradient(135deg, #121212 0%, #1a1a1a 100%);
+            --bg-card: #1e1e1e;
+            --bg-header: #1e1e1e;
+            --text-primary: #f0f0f0;
+            --text-secondary: #a0a0a0;
+            --border: #333;
+            --shadow: 0 2px 15px rgba(0, 0, 0, 0.3);
+            --light-gray: #2a2a2a;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -49,6 +61,7 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            transition: var(--transition);
         }
 
         .container {
@@ -65,12 +78,14 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            transition: var(--transition);
         }
 
         .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         .logo {
@@ -194,6 +209,11 @@
             border: 1px solid var(--border);
         }
 
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
         .card-header {
             display: flex;
             justify-content: space-between;
@@ -221,6 +241,8 @@
             border-radius: var(--radius-sm);
             font-size: 1rem;
             transition: var(--transition);
+            background: var(--bg-card);
+            color: var(--text-primary);
         }
 
         .form-control:focus {
@@ -297,6 +319,15 @@
             width: 100%;
         }
 
+        .btn-icon {
+            padding: 8px 10px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .devices-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -311,6 +342,12 @@
             transition: var(--transition);
         }
 
+        .device-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
         .device-name {
             font-size: 1.2rem;
             margin-bottom: 5px;
@@ -318,6 +355,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            flex: 1;
         }
 
         .device-name i {
@@ -329,6 +367,21 @@
             color: var(--text-secondary);
             margin-bottom: 10px;
             font-size: 0.9rem;
+        }
+
+        .device-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .device-info-grid > div {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
         }
 
         .device-status {
@@ -800,6 +853,227 @@
             font-size: 0.9rem;
         }
 
+        /* Mobile menu styles */
+        #mobileMenuBtn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        /* Dark theme toggle */
+        .theme-switcher {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .theme-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-option.active {
+            border-color: var(--primary);
+        }
+
+        .theme-light {
+            background: linear-gradient(to right, #f0f4ff 50%, #1e1e1e 50%);
+        }
+
+        .theme-dark {
+            background: #1e1e1e;
+        }
+
+        .theme-system {
+            background: linear-gradient(to right, #f0f4ff 50%, #1e1e1e 50%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theme-system:after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle, #1e1e1e 30%, transparent 30%);
+        }
+
+        /* Schedule item styles */
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .schedule-details {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .schedule-time {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .schedule-days {
+            display: flex;
+            gap: 5px;
+        }
+
+        .day {
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: var(--light-gray);
+            font-size: 0.85rem;
+        }
+
+        .day.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .schedule-device {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 45px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(21px);
+        }
+
+        /* Stat card improvements */
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .stat-trend {
+            font-size: 0.85rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+        }
+
+        .stat-trend.up {
+            background: rgba(40, 167, 69, 0.15);
+            color: #28a745;
+        }
+
+        .stat-trend.down {
+            background: rgba(220, 53, 69, 0.15);
+            color: #dc3545;
+        }
+
+        .stat-progress {
+            height: 5px;
+            background: var(--light-gray);
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 10px;
+        }
+
+        /* Map container */
+        .map-container {
+            height: 500px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+        }
+
+        /* Loader styles */
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            display: none;
+        }
+
+        .loader-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--primary-light);
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         @media (max-width: 768px) {
             .header-content {
                 flex-direction: column;
@@ -849,6 +1123,24 @@
             .comparison-container {
                 grid-template-columns: 1fr;
             }
+
+            #mobileMenuBtn {
+                display: block;
+            }
+
+            #mainNav {
+                display: none;
+                width: 100%;
+                margin-top: 15px;
+            }
+
+            #mainNav.active {
+                display: block;
+            }
+
+            nav ul {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -860,12 +1152,18 @@
                     <i class="fas fa-shield-alt"></i>
                     <span>FamilyGuard</span>
                 </div>
-                <nav id="mainNav" style="display: none;">
+
+                <button id="mobileMenuBtn" class="btn btn-outline">
+                    <i class="fas fa-bars"></i>
+                </button>
+
+                <nav id="mainNav">
                     <ul>
                         <li><a href="#" class="nav-link" data-page="dashboard"><i class="fas fa-home"></i> Home</a></li>
                         <li><a href="#" class="nav-link" data-page="devices"><i class="fas fa-mobile-alt"></i> Devices</a></li>
                         <li><a href="#" class="nav-link" data-page="schedule"><i class="fas fa-calendar-alt"></i> Schedule</a></li>
                         <li><a href="#" class="nav-link" data-page="stats"><i class="fas fa-chart-bar"></i> Stats</a></li>
+                        <li><a href="#" class="nav-link" data-page="location"><i class="fas fa-map-marker-alt"></i> Location</a></li>
                         <li><a href="#" class="nav-link" data-page="profile"><i class="fas fa-user"></i> Profile</a></li>
                         <li><a href="#" class="nav-link" data-page="settings"><i class="fas fa-cog"></i> Settings</a></li>
                     </ul>
@@ -878,6 +1176,11 @@
     </header>
 
     <main class="container">
+        <!-- Loader -->
+        <div class="loader" id="globalLoader">
+            <div class="loader-spinner"></div>
+        </div>
+
         <!-- Notifications -->
         <div id="notification" class="notification"></div>
 
@@ -989,6 +1292,12 @@
         <!-- Dashboard Page -->
         <div id="dashboardPage" class="page">
             <h1 class="page-title"><i class="fas fa-home"></i> Control Dashboard</h1>
+
+            <div class="user-menu" style="margin-bottom: 20px;">
+                <button id="emergencyLock" class="btn btn-danger">
+                    <i class="fas fa-lock"></i> Emergency Lock All Devices
+                </button>
+            </div>
 
             <div class="card">
                 <div class="card-header">
@@ -1108,27 +1417,56 @@
 
                 <div class="stats-container">
                     <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
-                        <div class="stat-value" id="totalUsage">0h 0m</div>
+                        <div class="stat-header">
+                            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                            <div class="stat-trend down">
+                                <i class="fas fa-arrow-down"></i> 12%
+                            </div>
+                        </div>
+                        <div class="stat-value" id="totalUsage">4h 22m</div>
                         <div class="stat-label">Total Usage</div>
+                        <div class="stat-progress">
+                            <div class="progress-bar" style="width: 65%"></div>
+                        </div>
                     </div>
 
                     <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-mobile-alt"></i></div>
-                        <div class="stat-value" id="mostUsedDevice">-</div>
+                        <div class="stat-header">
+                            <div class="stat-icon"><i class="fas fa-mobile-alt"></i></div>
+                            <div class="stat-trend up">
+                                <i class="fas fa-arrow-up"></i> 8%
+                            </div>
+                        </div>
+                        <div class="stat-value" id="mostUsedDevice">Tom's iPad</div>
                         <div class="stat-label">Most Used Device</div>
                     </div>
 
                     <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
-                        <div class="stat-value" id="avgDailyUsage">0h 0m</div>
+                        <div class="stat-header">
+                            <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
+                            <div class="stat-trend down">
+                                <i class="fas fa-arrow-down"></i> 15%
+                            </div>
+                        </div>
+                        <div class="stat-value" id="avgDailyUsage">2h 15m</div>
                         <div class="stat-label">Avg. Daily Usage</div>
+                        <div class="stat-progress">
+                            <div class="progress-bar" style="width: 45%"></div>
+                        </div>
                     </div>
 
                     <div class="stat-card">
-                        <div class="stat-icon"><i class="fas fa-ban"></i></div>
-                        <div class="stat-value" id="blockedTime">0h 0m</div>
+                        <div class="stat-header">
+                            <div class="stat-icon"><i class="fas fa-ban"></i></div>
+                            <div class="stat-trend up">
+                                <i class="fas fa-arrow-up"></i> 20%
+                            </div>
+                        </div>
+                        <div class="stat-value" id="blockedTime">3h 40m</div>
                         <div class="stat-label">Blocked Time</div>
+                        <div class="stat-progress">
+                            <div class="progress-bar" style="width: 55%"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -1175,19 +1513,41 @@
                         </div>
                         <div class="usage-comparison">
                             <div class="comparison-item">
-                                <div class="comparison-value" id="currentWeek">0h</div>
+                                <div class="comparison-value" id="currentWeek">12h</div>
                                 <div class="comparison-label">This Week</div>
                             </div>
                             <div class="comparison-item">
-                                <div class="comparison-value" id="previousWeek">0h</div>
+                                <div class="comparison-value" id="previousWeek">14h</div>
                                 <div class="comparison-label">Previous Week</div>
                             </div>
                             <div class="comparison-item">
-                                <div class="comparison-value" id="trendPercentage">0%</div>
+                                <div class="comparison-value trend-down" id="trendPercentage">-14%</div>
                                 <div class="comparison-label">Change</div>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Location Page -->
+        <div id="locationPage" class="page">
+            <h1 class="page-title"><i class="fas fa-map-marker-alt"></i> Device Location</h1>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Device Locations</h2>
+                    <button id="refreshLocations" class="btn btn-outline">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+
+                <div class="map-container" id="map">
+                    <!-- Map will be rendered here -->
+                </div>
+
+                <div class="devices-list" id="devicesLocationList">
+                    <!-- Device location list will be added dynamically -->
                 </div>
             </div>
         </div>
@@ -1331,11 +1691,11 @@
 
                     <div class="form-group">
                         <label for="theme">Theme</label>
-                        <select id="theme" class="form-control">
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                            <option value="system">System Default</option>
-                        </select>
+                        <div class="theme-switcher">
+                            <div class="theme-option theme-light active" data-theme="light"></div>
+                            <div class="theme-option theme-dark" data-theme="dark"></div>
+                            <div class="theme-option theme-system" data-theme="system"></div>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -1609,6 +1969,7 @@
         const devicesPage = document.getElementById('devicesPage');
         const schedulePage = document.getElementById('schedulePage');
         const statsPage = document.getElementById('statsPage');
+        const locationPage = document.getElementById('locationPage');
         const profilePage = document.getElementById('profilePage');
         const settingsPage = document.getElementById('settingsPage');
         const notificationsPage = document.getElementById('notificationsPage');
@@ -1634,20 +1995,27 @@
         const viewAllNotifications = document.getElementById('viewAllNotifications');
         const toggleAppChartBtn = document.getElementById('toggleAppChart');
         const appUsageContainer = document.getElementById('appUsageContainer');
+        const emergencyLockBtn = document.getElementById('emergencyLock');
+        const refreshLocationsBtn = document.getElementById('refreshLocations');
+        const mapContainer = document.getElementById('map');
+        const themeOptions = document.querySelectorAll('.theme-option');
+        const globalLoader = document.getElementById('globalLoader');
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
 
         // Chart instances
         let usageChartInstance = null;
         let appUsageChartInstance = null;
         let categoryChartInstance = null;
         let comparisonChartInstance = null;
+        let mapInstance = null;
 
         // Show notification
         function showNotification(message, type = 'success') {
             notificationEl.innerHTML = `
                 <i class="fas ${type === 'success' ? 'fa-check-circle' :
-                                 type === 'error' ? 'fa-exclamation-circle' :
-                                 type === 'warning' ? 'fa-exclamation-triangle' :
-                                 'fa-info-circle'}"></i>
+                                         type === 'error' ? 'fa-exclamation-circle' :
+                                         type === 'warning' ? 'fa-exclamation-triangle' :
+                                         'fa-info-circle'}"></i>
                 ${message}
             `;
             notificationEl.className = `notification ${type}`;
@@ -1656,6 +2024,15 @@
             setTimeout(() => {
                 notificationEl.style.display = 'none';
             }, 5000);
+        }
+
+        // Show/hide loader
+        function showLoader() {
+            globalLoader.style.display = 'flex';
+        }
+
+        function hideLoader() {
+            globalLoader.style.display = 'none';
         }
 
         // Navigate between pages
@@ -1678,6 +2055,7 @@
             else if (pageId === 'devices') loadDevicesPage();
             else if (pageId === 'schedule') loadSchedules();
             else if (pageId === 'stats') loadStats();
+            else if (pageId === 'location') loadLocations();
             else if (pageId === 'profile') loadProfile();
             else if (pageId === 'notifications') loadNotifications();
         }
@@ -1720,6 +2098,7 @@
 
         // API request
         async function apiRequest(url, method, body = null) {
+            showLoader();
             const headers = {
                 'Content-Type': 'application/json'
             };
@@ -1765,6 +2144,8 @@
             } catch (error) {
                 console.error('API request error:', error);
                 throw error;
+            } finally {
+                hideLoader();
             }
         }
 
@@ -1850,31 +2231,48 @@
                         const deviceCard = document.createElement('div');
                         deviceCard.className = 'device-card';
                         deviceCard.innerHTML = `
-                            <div class="device-status ${statusClass}"></div>
-                            <div class="device-name">
-                                <i class="fas fa-mobile-alt"></i> ${device.name}
+                            <div class="device-header">
+                                <div class="device-name">
+                                    <i class="fas fa-mobile-alt"></i>
+                                    <span class="device-name-text">${device.name}</span>
+                                </div>
+                                <div class="device-actions">
+                                    <button class="btn btn-icon edit-device-name" data-device="${device.deviceId}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="device-info">
-                                <div>${device.model || 'N/A'}</div>
-                                <div>${device.osVersion || 'N/A'}</div>
-                                <div>Status: ${isBlocked ? 'Blocked' : 'Online'}</div>
+                            <div class="device-info-grid">
+                                <div>
+                                    <i class="fas fa-microchip"></i>
+                                    <span>${device.model || 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <i class="fas fa-code-branch"></i>
+                                    <span>${device.osVersion || 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <i class="fas fa-shield-alt"></i>
+                                    <span>Status: ${isBlocked ? 'Blocked' : 'Online'}</span>
+                                </div>
+                                <div>
+                                    <i class="fas fa-clock"></i>
+                                    <span>Last active: 5 min ago</span>
+                                </div>
                             </div>
                             <div class="device-actions">
-                                <button class="btn ${buttonClass} btn-sm"
+                                <button class="btn ${buttonClass} btn-block"
                                         data-device="${device.deviceId}"
                                         data-action="${action}">
                                     <i class="fas ${buttonIcon}"></i>
                                     ${buttonText}
                                 </button>
-                                <button class="btn btn-outline btn-sm schedule-btn"
+                                <button class="btn btn-outline btn-block locate-btn"
                                         data-device="${device.deviceId}">
-                                    <i class="fas fa-calendar-alt"></i> Schedule
-                                </button>
-                                <button class="btn btn-outline btn-sm stats-btn"
-                                        data-device="${device.deviceId}">
-                                    <i class="fas fa-chart-bar"></i> Stats
+                                    <i class="fas fa-map-marker-alt"></i> Locate
                                 </button>
                             </div>
+                            <div class="device-status ${statusClass}"></div>
                         `;
                         gridElement.appendChild(deviceCard);
                     });
@@ -1998,15 +2396,33 @@
                         const scheduleItem = document.createElement('div');
                         scheduleItem.className = 'schedule-item';
                         scheduleItem.innerHTML = `
-                            <div class="schedule-details">
+                            <div class="schedule-header">
                                 <h4>${schedule.name}</h4>
-                                <p>${schedule.deviceName} · ${schedule.days.join(', ')} · ${schedule.startTime} - ${schedule.endTime}</p>
+                                <label class="switch">
+                                    <input type="checkbox" ${schedule.is_active ? 'checked' : ''} data-id="${schedule.id}">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="schedule-details">
+                                <div class="schedule-time">
+                                    <i class="fas fa-clock"></i>
+                                    <span>${schedule.startTime} - ${schedule.endTime}</span>
+                                </div>
+                                <div class="schedule-days">
+                                    ${['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(day =>
+                                        `<span class="day ${schedule.days.includes(day) ? 'active' : ''}">${day.substring(0, 3)}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                            <div class="schedule-device">
+                                <i class="fas fa-mobile-alt"></i>
+                                <span>${schedule.deviceName}</span>
                             </div>
                             <div class="schedule-actions">
-                                <button class="btn btn-outline btn-sm edit-schedule" data-id="${schedule.id}">
+                                <button class="btn btn-icon edit-schedule" data-id="${schedule.id}">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn btn-outline btn-sm delete-schedule" data-id="${schedule.id}">
+                                <button class="btn btn-icon delete-schedule" data-id="${schedule.id}">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -2331,7 +2747,7 @@
                 const trend = data.data.comparisonData.trendPercentage;
                 const trendElement = document.getElementById('trendPercentage');
                 trendElement.textContent = `${Math.abs(trend)}%`;
-                trendElement.className = 'trend-indicator ' +
+                trendElement.className = 'comparison-value ' +
                     (trend > 0 ? 'trend-up' : trend < 0 ? 'trend-down' : 'trend-neutral');
 
                 // Рендерим график сравнения
@@ -2559,6 +2975,92 @@
             document.getElementById('statsTimeFilter').addEventListener('change', loadStats);
         }
 
+        // Emergency lock all devices
+        async function emergencyLock() {
+            if (confirm('Are you sure you want to lock all devices immediately?')) {
+                try {
+                    showLoader();
+                    await apiRequest('/api/v1/devices/emergency-lock', 'POST');
+                    showNotification('All devices locked successfully', 'success');
+                    loadDashboard();
+                } catch (error) {
+                    showNotification(`Error: ${error.message}`, 'error');
+                } finally {
+                    hideLoader();
+                }
+            }
+        }
+
+        // Load device locations
+        async function loadLocations() {
+            try {
+                const data = await apiRequest('/api/v1/devices/locations', 'GET');
+
+                // Initialize map if not already done
+                if (!mapInstance) {
+                    mapInstance = L.map('map').setView([51.505, -0.09], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(mapInstance);
+                } else {
+                    mapInstance.eachLayer(layer => {
+                        if (layer instanceof L.Marker) {
+                            mapInstance.removeLayer(layer);
+                        }
+                    });
+                }
+
+                const devicesList = document.getElementById('devicesLocationList');
+                devicesList.innerHTML = '';
+
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(device => {
+                        if (device.latitude && device.longitude) {
+                            const marker = L.marker([device.latitude, device.longitude]).addTo(mapInstance)
+                                .bindPopup(`<b>${device.name}</b><br>Last update: ${new Date(device.lastUpdate).toLocaleTimeString()}`);
+
+                            // Add to device list
+                            const deviceEl = document.createElement('div');
+                            deviceEl.className = 'device-location-item';
+                            deviceEl.innerHTML = `
+                                <div class="device-header">
+                                    <i class="fas fa-mobile-alt"></i>
+                                    <h3>${device.name}</h3>
+                                </div>
+                                <p>Location: ${device.latitude.toFixed(4)}, ${device.longitude.toFixed(4)}</p>
+                                <p>Last update: ${new Date(device.lastUpdate).toLocaleString()}</p>
+                            `;
+                            devicesList.appendChild(deviceEl);
+                        }
+                    });
+
+                    // Adjust map view to show all markers
+                    const bounds = L.latLngBounds(data.data.map(d => [d.latitude, d.longitude]));
+                    mapInstance.fitBounds(bounds);
+                } else {
+                    devicesList.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <h3>No Location Data</h3>
+                            <p>Location tracking is not enabled or no data available.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                showNotification(`Error loading locations: ${error.message}`, 'error');
+            }
+        }
+
+        // Set theme
+        function setTheme(theme) {
+            if (theme === 'dark') {
+                document.body.classList.add('dark-theme');
+            } else {
+                document.body.classList.remove('dark-theme');
+            }
+            localStorage.setItem('theme', theme);
+        }
+
         // Event listeners
         function initEventListeners() {
             // Registration form
@@ -2616,6 +3118,11 @@
                     const page = link.getAttribute('data-page');
                     showPage(page);
                 });
+            });
+
+            // Mobile menu
+            mobileMenuBtn.addEventListener('click', () => {
+                mainNav.classList.toggle('active');
             });
 
             // Add device button
@@ -2686,6 +3193,7 @@
                 const unblockBtn = e.target.closest('[data-action="unblock"]');
                 const scheduleBtn = e.target.closest('.schedule-btn');
                 const statsBtn = e.target.closest('.stats-btn');
+                const locateBtn = e.target.closest('.locate-btn');
 
                 if (blockBtn || unblockBtn) {
                     const btn = blockBtn || unblockBtn;
@@ -2706,6 +3214,11 @@
                     document.getElementById('statsDeviceFilter').value = deviceId;
                     showPage('stats');
                     loadStats();
+                }
+
+                if (locateBtn) {
+                    const deviceId = locateBtn.getAttribute('data-device');
+                    showPage('location');
                 }
             });
 
@@ -2778,6 +3291,22 @@
                 showPage('notifications');
             });
 
+            // Emergency lock
+            emergencyLockBtn.addEventListener('click', emergencyLock);
+
+            // Refresh locations
+            refreshLocationsBtn.addEventListener('click', loadLocations);
+
+            // Theme switcher
+            themeOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    themeOptions.forEach(o => o.classList.remove('active'));
+                    option.classList.add('active');
+                    const theme = option.dataset.theme;
+                    setTheme(theme);
+                });
+            });
+
             // Initialize chart listeners
             initChartListeners();
         }
@@ -2785,6 +3314,13 @@
         // Initialize app
         async function initApp() {
             console.log("Initializing app...");
+
+            // Set theme from localStorage
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            setTheme(savedTheme);
+
+            // Activate saved theme option
+            document.querySelector(`.theme-option[data-theme="${savedTheme}"]`)?.classList.add('active');
 
             // Check server connection
             try {
