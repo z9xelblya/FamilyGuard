@@ -4,8 +4,8 @@ import string
 import random
 import logging
 from datetime import datetime, timedelta, date
-from contextlib import asynccontextmanager
-from typing import Optional, List, Dict
+from contextlib import asynccontextmanager, contextmanager
+from typing import Optional, List, Dict, Generator
 from pathlib import Path
 import shutil
 
@@ -22,6 +22,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, Date, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -185,8 +187,11 @@ class ScreenTimeLog(Base):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Контекст жизненного цикла приложения"""
-    await init_db()
+    engine = await init_db()
+    app.state.engine = engine
     yield
+    # Очистка при завершении
+    engine.dispose()
 
 
 # Создаем экземпляр FastAPI
@@ -405,6 +410,7 @@ class WebDeviceCreate(BaseModel):
     osVersion: Optional[str] = None
     tetheringCode: str
 
+
 class CategoryCreate(BaseModel):
     name: str
     label: str
@@ -469,6 +475,34 @@ class ScreenTimeLogResponse(BaseModel):
     last_update: str
 
 
+# Инициализация базы данных
+async def init_db():
+    """Инициализация движка БД"""
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./database.db")
+    engine = create_engine(DATABASE_URL)
+
+    # Создаем таблицы
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database engine initialized")
+    return engine
+
+
+# Получение сессии базы данных на запрос
+def get_db(request: Request) -> Generator[Session, None, None]:
+    """Генератор сессий БД для каждого запроса"""
+    engine = request.app.state.engine
+    SessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=engine
+    )
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 # Функция для проверки токена
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
     """Верификация JWT токена"""
@@ -491,28 +525,6 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid or missing token: {str(e)}"
         )
-
-
-# Инициализация базы данных
-async def init_db():
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./database.db")
-    engine = create_engine(DATABASE_URL)
-
-    # Создаем таблицы
-    Base.metadata.create_all(bind=engine)
-
-    # Создаем сессию
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    app.state.db = SessionLocal()
-    logger.info("Database initialized")
-
-
-# Получение сессии базы данных
-def get_db():
-    return app.state.db
 
 
 # Обработчики ошибок
@@ -556,7 +568,11 @@ async def spa_handler(request: Request, exc: HTTPException):
 
 # Регистрация пользователя
 @app.post("/api/v1/register")
-async def register(payload: UserCreate, db: Session = Depends(get_db)):
+async def register(
+        payload: UserCreate,
+        request: Request,
+        db: Session = Depends(get_db)
+):
     """Регистрация нового пользователя"""
     logger.info(f"Register request: {payload.dict()}")
     try:
@@ -587,10 +603,19 @@ async def register(payload: UserCreate, db: Session = Depends(get_db)):
             timezone=payload.timezone,
             phone=payload.phone,
         )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        logger.info(f"User created: {user.user_id}")
+
+        try:
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            logger.info(f"User created: {user.user_id}")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Registration commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         resp = UserResponse(
             userId=user.user_id,
@@ -607,6 +632,7 @@ async def register(payload: UserCreate, db: Session = Depends(get_db)):
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Registration error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -619,7 +645,11 @@ async def register(payload: UserCreate, db: Session = Depends(get_db)):
 
 # Авторизация пользователя
 @app.post("/api/v1/login")
-async def login(payload: LoginRequest, db: Session = Depends(get_db)):
+async def login(
+        payload: LoginRequest,
+        request: Request,
+        db: Session = Depends(get_db)
+):
     """Авторизация пользователя"""
     logger.info(f"Login attempt for: {payload.email}")
     try:
@@ -676,6 +706,7 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
 @app.post("/api/v1/login-via-token", response_model=SuccessResponse)
 async def login_via_token(
         payload: LoginViaTokenRequest,
+        request: Request,
         db: Session = Depends(get_db)
 ):
     """
@@ -719,17 +750,25 @@ async def login_via_token(
 
         # Помечаем код как использованный
         code_entry.used = True
-        db.add(code_entry)
 
-        # Создаем уведомление (в стиле первого кода)
+        # Создаем уведомление
         notification = Notification(
             user_id=user.user_id,
             title="New Device Login",
             message=f"Logged in via tethering code",
             type="info"
         )
-        db.add(notification)
-        db.commit()
+
+        try:
+            db.add(notification)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Notification commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         # Генерируем JWT токен
         expire = now + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
@@ -775,6 +814,7 @@ def generate_code() -> str:
 
 @app.post("/api/v1/tethering-code", status_code=201)
 async def create_tethering_code(
+        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -789,8 +829,8 @@ async def create_tethering_code(
             c = generate_code()
             exp = now + timedelta(seconds=600)
             entry = TetheringCode(code=c, user_id=user_id, expiredAt=exp, used=False)
-            db.add(entry)
             try:
+                db.add(entry)
                 db.commit()
                 code = c
                 expires_at = exp
@@ -816,6 +856,7 @@ async def create_tethering_code(
             }
         }
     except Exception as e:
+        db.rollback()
         logger.error(f"Tethering code error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -830,6 +871,7 @@ async def create_tethering_code(
 @app.post("/api/v1/devices/tether", status_code=201)
 async def tether_device(
         payload: DeviceTetherRequest,
+        request: Request,
         db: Session = Depends(get_db)
 ):
     """Привязка нового устройства через мобильное приложение"""
@@ -861,11 +903,9 @@ async def tether_device(
             osVersion=payload.osVersion,
             isBlocked=False
         )
-        db.add(device)
 
         # Помечаем код как использованный
         code_entry.used = True
-        db.add(code_entry)
 
         # Создаем уведомление
         notification = Notification(
@@ -874,11 +914,20 @@ async def tether_device(
             message=f"Device '{payload.deviceName}' has been tethered to your account",
             type="success"
         )
-        db.add(notification)
 
-        db.commit()
-        db.refresh(device)
-        logger.info(f"Device tethered: {device.device_id} for user: {code_entry.user_id}")
+        try:
+            db.add(device)
+            db.add(notification)
+            db.commit()
+            db.refresh(device)
+            logger.info(f"Device tethered: {device.device_id} for user: {code_entry.user_id}")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Tether device commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         return JSONResponse(
             status_code=201,
@@ -891,6 +940,7 @@ async def tether_device(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Tether device error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -905,6 +955,7 @@ async def tether_device(
 @app.post("/api/v1/devices", status_code=201)
 async def add_device_via_web(
         payload: WebDeviceCreate,
+        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -938,11 +989,9 @@ async def add_device_via_web(
             osVersion=payload.osVersion,
             isBlocked=False
         )
-        db.add(device)
 
         # Помечаем код как использованный
         code_entry.used = True
-        db.add(code_entry)
 
         # Создаем уведомление
         notification = Notification(
@@ -951,11 +1000,20 @@ async def add_device_via_web(
             message=f"Device '{payload.name}' has been tethered to your account",
             type="success"
         )
-        db.add(notification)
 
-        db.commit()
-        db.refresh(device)
-        logger.info(f"Device added via web: {device.device_id}")
+        try:
+            db.add(device)
+            db.add(notification)
+            db.commit()
+            db.refresh(device)
+            logger.info(f"Device added via web: {device.device_id}")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Add device via web commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         return JSONResponse(
             status_code=201,
@@ -968,6 +1026,7 @@ async def add_device_via_web(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Add device via web error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -981,6 +1040,7 @@ async def add_device_via_web(
 # Получение списка устройств
 @app.get("/api/v1/devices")
 async def get_devices(
+        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -1021,6 +1081,7 @@ async def get_devices(
 # Блокировка устройства
 @app.post("/api/v1/devices/{device_id}/block")
 async def block_device(
+        request: Request,
         device_id: str,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1045,7 +1106,6 @@ async def block_device(
             )
 
         device.isBlocked = True
-        db.add(device)
 
         # Создаем уведомление
         notification = Notification(
@@ -1054,10 +1114,19 @@ async def block_device(
             message=f"Device '{device.name}' has been blocked",
             type="alert"
         )
-        db.add(notification)
 
-        db.commit()
-        logger.info(f"Device blocked: {device_id}")
+        try:
+            db.add(notification)
+            db.commit()
+            logger.info(f"Device blocked: {device_id}")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Block device commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
+
         return JSONResponse(
             status_code=200,
             content={
@@ -1066,6 +1135,7 @@ async def block_device(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Block device error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -1079,6 +1149,7 @@ async def block_device(
 # Разблокировка устройства
 @app.post("/api/v1/devices/{device_id}/unblock")
 async def unblock_device(
+        request: Request,
         device_id: str,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1103,7 +1174,6 @@ async def unblock_device(
             )
 
         device.isBlocked = False
-        db.add(device)
 
         # Создаем уведомление
         notification = Notification(
@@ -1112,10 +1182,19 @@ async def unblock_device(
             message=f"Device '{device.name}' has been unblocked",
             type="success"
         )
-        db.add(notification)
 
-        db.commit()
-        logger.info(f"Device unblocked: {device_id}")
+        try:
+            db.add(notification)
+            db.commit()
+            logger.info(f"Device unblocked: {device_id}")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Unblock device commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
+
         return JSONResponse(
             status_code=200,
             content={
@@ -1124,6 +1203,7 @@ async def unblock_device(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Unblock device error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -1139,6 +1219,7 @@ async def unblock_device(
 # Получение расписаний блокировки
 @app.get("/api/v1/schedules", response_model=List[ScheduleResponse])
 async def get_schedules(
+        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -1171,6 +1252,7 @@ async def get_schedules(
 # Создание расписания блокировки
 @app.post("/api/v1/schedules", status_code=201)
 async def create_schedule(
+        request: Request,
         schedule: ScheduleCreate,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1197,8 +1279,6 @@ async def create_schedule(
             type=schedule.type
         )
 
-        db.add(new_schedule)
-
         # Создаем уведомление
         notification = Notification(
             user_id=user_id,
@@ -1206,11 +1286,18 @@ async def create_schedule(
             message=f"You created a new schedule '{schedule.name}' for {device.name}",
             type="info"
         )
-        db.add(notification)
 
-        db.commit()
-        return {"status": "success", "message": "Schedule created"}
+        try:
+            db.add(new_schedule)
+            db.add(notification)
+            db.commit()
+            return {"status": "success", "message": "Schedule created"}
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Create schedule commit error: {str(e)}")
+            raise
     except Exception as e:
+        db.rollback()
         logger.error(f"Create schedule error: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -1221,6 +1308,7 @@ async def create_schedule(
 # Получение уведомлений
 @app.get("/api/v1/notifications", response_model=List[NotificationResponse])
 async def get_notifications(
+        request: Request,
         user_id: str = Depends(verify_token),
         limit: int = Query(10, gt=0),
         db: Session = Depends(get_db)
@@ -1252,15 +1340,17 @@ async def get_notifications(
 # Очистка всех уведомлений
 @app.delete("/api/v1/notifications")
 async def clear_notifications(
+        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
     """Очистка всех уведомлений"""
     try:
-        db.query(Notification).filter(Notification.user_id == user_id).delete()
+        result = db.query(Notification).filter(Notification.user_id == user_id).delete()
         db.commit()
-        return {"status": "success", "message": "All notifications cleared"}
+        return {"status": "success", "message": f"{result} notifications cleared"}
     except Exception as e:
+        db.rollback()
         logger.error(f"Clear notifications error: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -1271,6 +1361,7 @@ async def clear_notifications(
 # Получение статистики использования
 @app.get("/api/v1/stats")
 async def get_statistics(
+        request: Request,
         user_id: str = Depends(verify_token),
         device: str = Query("all"),
         period: str = Query("week"),
@@ -1342,6 +1433,7 @@ async def get_statistics(
 # Получение профиля пользователя
 @app.get("/api/v1/profile")
 async def get_profile(
+        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -1372,6 +1464,7 @@ async def get_profile(
 # Обновление профиля пользователя
 @app.put("/api/v1/profile")
 async def update_profile(
+        request: Request,
         profile: ProfileUpdate,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1391,9 +1484,15 @@ async def update_profile(
         if profile.timezone is not None:
             user.timezone = profile.timezone
 
-        db.commit()
-        return {"status": "success", "message": "Profile updated"}
+        try:
+            db.commit()
+            return {"status": "success", "message": "Profile updated"}
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Update profile commit error: {str(e)}")
+            raise
     except Exception as e:
+        db.rollback()
         logger.error(f"Update profile error: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -1404,6 +1503,7 @@ async def update_profile(
 # Смена пароля
 @app.post("/api/v1/change-password")
 async def change_password(
+        request: Request,
         passwords: PasswordChange,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1421,7 +1521,6 @@ async def change_password(
         # Хеширование нового пароля
         new_password_hash = pwd_context.hash(passwords.newPassword)
         user.password = new_password_hash
-        db.commit()
 
         # Создаем уведомление
         notification = Notification(
@@ -1430,11 +1529,17 @@ async def change_password(
             message="Your password was successfully changed",
             type="info"
         )
-        db.add(notification)
-        db.commit()
 
-        return {"status": "success", "message": "Password updated"}
+        try:
+            db.add(notification)
+            db.commit()
+            return {"status": "success", "message": "Password updated"}
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Change password commit error: {str(e)}")
+            raise
     except Exception as e:
+        db.rollback()
         logger.error(f"Change password error: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -1461,6 +1566,7 @@ async def ping():
 # Категории приложений
 @app.post("/api/v1/categories", status_code=status.HTTP_201_CREATED)
 async def create_category(
+        request: Request,
         payload: CategoryCreate,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1475,9 +1581,6 @@ async def create_category(
             description=payload.description,
             restricted=payload.restricted
         )
-        db.add(category)
-        db.commit()
-        db.refresh(category)
 
         # Создаем уведомление
         notification = Notification(
@@ -1486,8 +1589,19 @@ async def create_category(
             message=f"Category '{payload.name}' was created",
             type="info"
         )
-        db.add(notification)
-        db.commit()
+
+        try:
+            db.add(category)
+            db.add(notification)
+            db.commit()
+            db.refresh(category)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Create category commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
@@ -1505,6 +1619,7 @@ async def create_category(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Create category error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1517,6 +1632,7 @@ async def create_category(
 
 @app.get("/api/v1/categories", response_model=List[CategoryResponse])
 async def get_categories(
+        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -1543,6 +1659,7 @@ async def get_categories(
 
 @app.delete("/api/v1/categories/{category_id}")
 async def delete_category(
+        request: Request,
         category_id: str,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1564,8 +1681,6 @@ async def delete_category(
                 }
             )
 
-        db.delete(category)
-
         # Создаем уведомление
         notification = Notification(
             user_id=user_id,
@@ -1573,8 +1688,18 @@ async def delete_category(
             message=f"Category '{category.name}' was deleted",
             type="warning"
         )
-        db.add(notification)
-        db.commit()
+
+        try:
+            db.delete(category)
+            db.add(notification)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Delete category commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -1584,6 +1709,7 @@ async def delete_category(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Delete category error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1597,6 +1723,7 @@ async def delete_category(
 # Скриншоты
 @app.post("/api/v1/screenshots", status_code=status.HTTP_201_CREATED)
 async def upload_screenshot(
+        request: Request,
         category: str = Form(...),
         transaction_id: str = Form(...),
         device_id: str = Form(...),
@@ -1638,7 +1765,6 @@ async def upload_screenshot(
             category=category,
             transaction_id=transaction_id
         )
-        db.add(screenshot)
 
         # Создаем уведомление
         notification = Notification(
@@ -1647,9 +1773,22 @@ async def upload_screenshot(
             message=f"Screenshot uploaded from {device.name}",
             type="info"
         )
-        db.add(notification)
-        db.commit()
-        db.refresh(screenshot)
+
+        try:
+            db.add(screenshot)
+            db.add(notification)
+            db.commit()
+            db.refresh(screenshot)
+        except Exception as e:
+            # Удаляем файл при ошибке БД
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            db.rollback()
+            logger.error(f"Upload screenshot commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
@@ -1667,6 +1806,7 @@ async def upload_screenshot(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Upload screenshot error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1680,6 +1820,7 @@ async def upload_screenshot(
 # Управление экранным временем
 @app.post("/api/v1/screen-time", status_code=status.HTTP_201_CREATED)
 async def create_screen_time(
+        request: Request,
         payload: ScreenTimeCreate,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1709,7 +1850,6 @@ async def create_screen_time(
             schedule_start=payload.schedule_start,
             schedule_end=payload.schedule_end
         )
-        db.add(screen_time)
 
         # Создаем уведомление
         notification = Notification(
@@ -1718,9 +1858,19 @@ async def create_screen_time(
             message=f"Screen time limit set for {device.name}",
             type="info"
         )
-        db.add(notification)
-        db.commit()
-        db.refresh(screen_time)
+
+        try:
+            db.add(screen_time)
+            db.add(notification)
+            db.commit()
+            db.refresh(screen_time)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Create screen time commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
@@ -1738,6 +1888,7 @@ async def create_screen_time(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Create screen time error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1750,6 +1901,7 @@ async def create_screen_time(
 
 @app.get("/api/v1/screen-time", response_model=List[ScreenTimeResponse])
 async def get_screen_times(
+        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -1779,6 +1931,7 @@ async def get_screen_times(
 
 @app.put("/api/v1/screen-time/{screen_time_id}")
 async def update_screen_time(
+        request: Request,
         screen_time_id: str,
         payload: ScreenTimeCreate,
         user_id: str = Depends(verify_token),
@@ -1828,9 +1981,18 @@ async def update_screen_time(
             message=f"Screen time limit updated for {device.name}",
             type="info"
         )
-        db.add(notification)
-        db.commit()
-        db.refresh(screen_time)
+
+        try:
+            db.add(notification)
+            db.commit()
+            db.refresh(screen_time)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Update screen time commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -1848,6 +2010,7 @@ async def update_screen_time(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Update screen time error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1860,6 +2023,7 @@ async def update_screen_time(
 
 @app.delete("/api/v1/screen-time/{screen_time_id}")
 async def delete_screen_time(
+        request: Request,
         screen_time_id: str,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1883,8 +2047,6 @@ async def delete_screen_time(
 
         device_name = screen_time.device.name if screen_time.device else "Unknown device"
 
-        db.delete(screen_time)
-
         # Создаем уведомление
         notification = Notification(
             user_id=user_id,
@@ -1892,8 +2054,18 @@ async def delete_screen_time(
             message=f"Screen time limit removed for {device_name}",
             type="warning"
         )
-        db.add(notification)
-        db.commit()
+
+        try:
+            db.delete(screen_time)
+            db.add(notification)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Delete screen time commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -1903,6 +2075,7 @@ async def delete_screen_time(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Delete screen time error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1915,6 +2088,7 @@ async def delete_screen_time(
 
 @app.post("/api/v1/screen-time/log", status_code=status.HTTP_201_CREATED)
 async def log_screen_time(
+        request: Request,
         payload: ScreenTimeLogCreate,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1961,8 +2135,17 @@ async def log_screen_time(
             timestamp=datetime.fromisoformat(payload.timestamp),
             activity_type=payload.activity_type
         )
-        db.add(log)
-        db.commit()
+
+        try:
+            db.add(log)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Log screen time commit error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error"
+            )
 
         # Вычисляем использованное и оставшееся время
         logs = db.query(ScreenTimeLog).filter(
@@ -1988,6 +2171,7 @@ async def log_screen_time(
             }
         )
     except Exception as e:
+        db.rollback()
         logger.error(f"Log screen time error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
