@@ -4,10 +4,13 @@ import string
 import random
 import logging
 from datetime import datetime, timedelta, date
-from contextlib import asynccontextmanager, contextmanager
-from typing import Optional, List, Dict, Generator
+from contextlib import asynccontextmanager
+from typing import Optional, List, Dict
 from pathlib import Path
 import shutil
+
+from collections import defaultdict
+from typing import Tuple
 
 import jwt
 import uvicorn
@@ -22,8 +25,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, Date, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -187,11 +188,8 @@ class ScreenTimeLog(Base):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Контекст жизненного цикла приложения"""
-    engine = await init_db()
-    app.state.engine = engine
+    await init_db()
     yield
-    # Очистка при завершении
-    engine.dispose()
 
 
 # Создаем экземпляр FastAPI
@@ -360,6 +358,12 @@ class PasswordChange(BaseModel):
     currentPassword: str
     newPassword: str
 
+class StatisticReport(BaseModel):
+    device_id: str
+    date: date
+    total_usage: int  # в минутах
+    app_usage: Dict[str, int]  # {название_приложения: минуты}
+    blocked_time: int  # в минутах
 
 # Новые модели для статистики
 class UsageData(BaseModel):
@@ -409,7 +413,6 @@ class WebDeviceCreate(BaseModel):
     model: Optional[str] = None
     osVersion: Optional[str] = None
     tetheringCode: str
-
 
 class CategoryCreate(BaseModel):
     name: str
@@ -475,34 +478,6 @@ class ScreenTimeLogResponse(BaseModel):
     last_update: str
 
 
-# Инициализация базы данных
-async def init_db():
-    """Инициализация движка БД"""
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./database.db")
-    engine = create_engine(DATABASE_URL)
-
-    # Создаем таблицы
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database engine initialized")
-    return engine
-
-
-# Получение сессии базы данных на запрос
-def get_db(request: Request) -> Generator[Session, None, None]:
-    """Генератор сессий БД для каждого запроса"""
-    engine = request.app.state.engine
-    SessionLocal = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=engine
-    )
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 # Функция для проверки токена
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
     """Верификация JWT токена"""
@@ -525,6 +500,28 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid or missing token: {str(e)}"
         )
+
+
+# Инициализация базы данных
+async def init_db():
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./database.db")
+    engine = create_engine(DATABASE_URL)
+
+    # Создаем таблицы
+    Base.metadata.create_all(bind=engine)
+
+    # Создаем сессию
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    app.state.db = SessionLocal()
+    logger.info("Database initialized")
+
+
+# Получение сессии базы данных
+def get_db():
+    return app.state.db
 
 
 # Обработчики ошибок
@@ -568,11 +565,7 @@ async def spa_handler(request: Request, exc: HTTPException):
 
 # Регистрация пользователя
 @app.post("/api/v1/register")
-async def register(
-        payload: UserCreate,
-        request: Request,
-        db: Session = Depends(get_db)
-):
+async def register(payload: UserCreate, db: Session = Depends(get_db)):
     """Регистрация нового пользователя"""
     logger.info(f"Register request: {payload.dict()}")
     try:
@@ -603,19 +596,10 @@ async def register(
             timezone=payload.timezone,
             phone=payload.phone,
         )
-
-        try:
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            logger.info(f"User created: {user.user_id}")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Registration commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        logger.info(f"User created: {user.user_id}")
 
         resp = UserResponse(
             userId=user.user_id,
@@ -632,7 +616,6 @@ async def register(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Registration error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -645,11 +628,7 @@ async def register(
 
 # Авторизация пользователя
 @app.post("/api/v1/login")
-async def login(
-        payload: LoginRequest,
-        request: Request,
-        db: Session = Depends(get_db)
-):
+async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     """Авторизация пользователя"""
     logger.info(f"Login attempt for: {payload.email}")
     try:
@@ -706,7 +685,6 @@ async def login(
 @app.post("/api/v1/login-via-token", response_model=SuccessResponse)
 async def login_via_token(
         payload: LoginViaTokenRequest,
-        request: Request,
         db: Session = Depends(get_db)
 ):
     """
@@ -749,28 +727,20 @@ async def login_via_token(
             )
 
         # Помечаем код как использованный
-        code_entry.used = True
+        #code_entry.used = True
+        #db.add(code_entry)
 
-        # Создаем уведомление
+        # Создаем уведомление (в стиле первого кода)
         notification = Notification(
             user_id=user.user_id,
             title="New Device Login",
             message=f"Logged in via tethering code",
             type="info"
         )
+        db.add(notification)
+        db.commit()
 
-        try:
-            db.add(notification)
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Notification commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
-
-        # Генерируем JWT токен
+        # Генерируем JWT токена
         expire = now + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
         token = jwt.encode({
             "sub": user.user_id,
@@ -814,7 +784,6 @@ def generate_code() -> str:
 
 @app.post("/api/v1/tethering-code", status_code=201)
 async def create_tethering_code(
-        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -829,8 +798,8 @@ async def create_tethering_code(
             c = generate_code()
             exp = now + timedelta(seconds=600)
             entry = TetheringCode(code=c, user_id=user_id, expiredAt=exp, used=False)
+            db.add(entry)
             try:
-                db.add(entry)
                 db.commit()
                 code = c
                 expires_at = exp
@@ -856,7 +825,6 @@ async def create_tethering_code(
             }
         }
     except Exception as e:
-        db.rollback()
         logger.error(f"Tethering code error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -871,7 +839,6 @@ async def create_tethering_code(
 @app.post("/api/v1/devices/tether", status_code=201)
 async def tether_device(
         payload: DeviceTetherRequest,
-        request: Request,
         db: Session = Depends(get_db)
 ):
     """Привязка нового устройства через мобильное приложение"""
@@ -903,9 +870,11 @@ async def tether_device(
             osVersion=payload.osVersion,
             isBlocked=False
         )
+        db.add(device)
 
         # Помечаем код как использованный
         code_entry.used = True
+        db.add(code_entry)
 
         # Создаем уведомление
         notification = Notification(
@@ -914,20 +883,11 @@ async def tether_device(
             message=f"Device '{payload.deviceName}' has been tethered to your account",
             type="success"
         )
+        db.add(notification)
 
-        try:
-            db.add(device)
-            db.add(notification)
-            db.commit()
-            db.refresh(device)
-            logger.info(f"Device tethered: {device.device_id} for user: {code_entry.user_id}")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Tether device commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
+        db.commit()
+        db.refresh(device)
+        logger.info(f"Device tethered: {device.device_id} for user: {code_entry.user_id}")
 
         return JSONResponse(
             status_code=201,
@@ -940,7 +900,6 @@ async def tether_device(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Tether device error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -955,7 +914,6 @@ async def tether_device(
 @app.post("/api/v1/devices", status_code=201)
 async def add_device_via_web(
         payload: WebDeviceCreate,
-        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -989,9 +947,11 @@ async def add_device_via_web(
             osVersion=payload.osVersion,
             isBlocked=False
         )
+        db.add(device)
 
         # Помечаем код как использованный
         code_entry.used = True
+        db.add(code_entry)
 
         # Создаем уведомление
         notification = Notification(
@@ -1000,20 +960,11 @@ async def add_device_via_web(
             message=f"Device '{payload.name}' has been tethered to your account",
             type="success"
         )
+        db.add(notification)
 
-        try:
-            db.add(device)
-            db.add(notification)
-            db.commit()
-            db.refresh(device)
-            logger.info(f"Device added via web: {device.device_id}")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Add device via web commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
+        db.commit()
+        db.refresh(device)
+        logger.info(f"Device added via web: {device.device_id}")
 
         return JSONResponse(
             status_code=201,
@@ -1026,7 +977,6 @@ async def add_device_via_web(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Add device via web error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -1040,7 +990,6 @@ async def add_device_via_web(
 # Получение списка устройств
 @app.get("/api/v1/devices")
 async def get_devices(
-        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -1081,7 +1030,6 @@ async def get_devices(
 # Блокировка устройства
 @app.post("/api/v1/devices/{device_id}/block")
 async def block_device(
-        request: Request,
         device_id: str,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1106,6 +1054,7 @@ async def block_device(
             )
 
         device.isBlocked = True
+        db.add(device)
 
         # Создаем уведомление
         notification = Notification(
@@ -1114,19 +1063,10 @@ async def block_device(
             message=f"Device '{device.name}' has been blocked",
             type="alert"
         )
+        db.add(notification)
 
-        try:
-            db.add(notification)
-            db.commit()
-            logger.info(f"Device blocked: {device_id}")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Block device commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
-
+        db.commit()
+        logger.info(f"Device blocked: {device_id}")
         return JSONResponse(
             status_code=200,
             content={
@@ -1135,7 +1075,6 @@ async def block_device(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Block device error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -1149,7 +1088,6 @@ async def block_device(
 # Разблокировка устройства
 @app.post("/api/v1/devices/{device_id}/unblock")
 async def unblock_device(
-        request: Request,
         device_id: str,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1174,6 +1112,7 @@ async def unblock_device(
             )
 
         device.isBlocked = False
+        db.add(device)
 
         # Создаем уведомление
         notification = Notification(
@@ -1182,19 +1121,10 @@ async def unblock_device(
             message=f"Device '{device.name}' has been unblocked",
             type="success"
         )
+        db.add(notification)
 
-        try:
-            db.add(notification)
-            db.commit()
-            logger.info(f"Device unblocked: {device_id}")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Unblock device commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
-
+        db.commit()
+        logger.info(f"Device unblocked: {device_id}")
         return JSONResponse(
             status_code=200,
             content={
@@ -1203,7 +1133,6 @@ async def unblock_device(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Unblock device error: {str(e)}")
         return JSONResponse(
             status_code=500,
@@ -1219,7 +1148,6 @@ async def unblock_device(
 # Получение расписаний блокировки
 @app.get("/api/v1/schedules", response_model=List[ScheduleResponse])
 async def get_schedules(
-        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -1252,7 +1180,6 @@ async def get_schedules(
 # Создание расписания блокировки
 @app.post("/api/v1/schedules", status_code=201)
 async def create_schedule(
-        request: Request,
         schedule: ScheduleCreate,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1279,6 +1206,8 @@ async def create_schedule(
             type=schedule.type
         )
 
+        db.add(new_schedule)
+
         # Создаем уведомление
         notification = Notification(
             user_id=user_id,
@@ -1286,18 +1215,11 @@ async def create_schedule(
             message=f"You created a new schedule '{schedule.name}' for {device.name}",
             type="info"
         )
+        db.add(notification)
 
-        try:
-            db.add(new_schedule)
-            db.add(notification)
-            db.commit()
-            return {"status": "success", "message": "Schedule created"}
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Create schedule commit error: {str(e)}")
-            raise
+        db.commit()
+        return {"status": "success", "message": "Schedule created"}
     except Exception as e:
-        db.rollback()
         logger.error(f"Create schedule error: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -1308,7 +1230,6 @@ async def create_schedule(
 # Получение уведомлений
 @app.get("/api/v1/notifications", response_model=List[NotificationResponse])
 async def get_notifications(
-        request: Request,
         user_id: str = Depends(verify_token),
         limit: int = Query(10, gt=0),
         db: Session = Depends(get_db)
@@ -1340,79 +1261,253 @@ async def get_notifications(
 # Очистка всех уведомлений
 @app.delete("/api/v1/notifications")
 async def clear_notifications(
-        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
     """Очистка всех уведомлений"""
     try:
-        result = db.query(Notification).filter(Notification.user_id == user_id).delete()
+        db.query(Notification).filter(Notification.user_id == user_id).delete()
         db.commit()
-        return {"status": "success", "message": f"{result} notifications cleared"}
+        return {"status": "success", "message": "All notifications cleared"}
     except Exception as e:
-        db.rollback()
         logger.error(f"Clear notifications error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
         )
 
+######### СТАТИСТИКА ПЕРВАЯ РУЧКА ДЛЯ АППЫ ВТОРАЯ ДЛЯ САЙТА #####################
+@app.post("/api/v1/stats/report")
+async def report_statistics(
+        payload: StatisticReport,
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    """Прием статистики использования от мобильного приложения"""
+    logger.info(f"Receiving stats report for device: {payload.device_id}")
 
-# Получение статистики использования
+    try:
+        # Проверка принадлежности устройства пользователю
+        device = db.query(Device).filter(
+            Device.device_id == payload.device_id,
+            Device.user_id == user_id
+        ).first()
+
+        if not device:
+            logger.warning(f"Device not found: {payload.device_id}")
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "status": "error",
+                    "code": 404,
+                    "message": "Device not found"
+                }
+            )
+
+        # Поиск существующей записи за эту дату
+        statistic = db.query(Statistic).filter(
+            Statistic.user_id == user_id,
+            Statistic.device_id == payload.device_id,
+            Statistic.date == payload.date
+        ).first()
+
+        if statistic:
+            # Обновление существующей записи
+            statistic.total_usage = payload.total_usage
+            statistic.app_usage = payload.app_usage
+            statistic.blocked_time = payload.blocked_time
+        else:
+            # Создание новой записи
+            statistic = Statistic(
+                user_id=user_id,
+                device_id=payload.device_id,
+                date=payload.date,
+                total_usage=payload.total_usage,
+                app_usage=payload.app_usage,
+                blocked_time=payload.blocked_time
+            )
+            db.add(statistic)
+
+        db.commit()
+        logger.info(f"Stats saved for device: {payload.device_id}, date: {payload.date}")
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "success",
+                "message": "Statistics saved"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Save statistics error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": "Internal server error"
+            }
+        )
+
+
+def minutes_to_hh_mm(minutes: int) -> str:
+    """Конвертирует минуты в формат 'Xh Ym'"""
+    hours = minutes // 60
+    mins = minutes % 60
+    return f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
+
+
+def get_week_dates(period: str) -> Tuple[date, date]:
+    """Возвращает даты начала и конца периода"""
+    today = date.today()
+
+    if period == "week":
+        start = today - timedelta(days=today.weekday())
+        end = start + timedelta(days=6)
+    elif period == "month":
+        start = date(today.year, today.month, 1)
+        # Исправление для декабря
+        if today.month == 12:
+            end = date(today.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end = date(today.year, today.month + 1, 1) - timedelta(days=1)
+    else:  # day
+        start = today
+        end = today
+
+    return start, end
+
+
 @app.get("/api/v1/stats")
 async def get_statistics(
-        request: Request,
         user_id: str = Depends(verify_token),
-        device: str = Query("all"),
+        device_id: str = Query("all"),
         period: str = Query("week"),
         db: Session = Depends(get_db)
 ):
-    """Получение статистики использования с фиктивными данными"""
-    logger.info(f"Getting stats for user: {user_id}, device: {device}, period: {period}")
+    """Получение статистики использования (реальные данные)"""
+    logger.info(f"Getting stats for user: {user_id}, device: {device_id}, period: {period}")
+
     try:
-        # Фиктивные данные для графика использования
-        usage_data = UsageData(
-            labels=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-            data=[120, 90, 150, 100, 180, 240, 200]
+        # Определяем временной период
+        start_date, end_date = get_week_dates(period)
+
+        # Получаем данные из базы
+        query = db.query(Statistic).filter(
+            Statistic.user_id == user_id,
+            Statistic.date.between(start_date, end_date)
         )
 
-        # Фиктивные данные для использования приложений
-        app_usage = [
-            AppUsageItem(name="TikTok", minutes=120, category="Social"),
-            AppUsageItem(name="YouTube", minutes=90, category="Entertainment"),
-            AppUsageItem(name="Instagram", minutes=60, category="Social"),
-            AppUsageItem(name="Chrome", minutes=45, category="Browsing"),
-            AppUsageItem(name="Minecraft", minutes=30, category="Games")
+        if device_id != "all":
+            query = query.filter(Statistic.device_id == device_id)
+
+        stats = query.all()
+
+        # Если данных нет, возвращаем пустой ответ
+        if not stats:
+            return JSONResponse(
+                status_code=200,
+                content=StatsResponse(data=StatsData(
+                    totalUsage="0m",
+                    mostUsedDevice="No data",
+                    avgDailyUsage="0m",
+                    blockedTime="0m",
+                    usageData=UsageData(labels=[], data=[]).dict(),
+                    appUsage=[],
+                    categoryData=[],
+                    comparisonData=ComparisonData(
+                        labels=[],
+                        currentWeek=[],
+                        previousWeek=[],
+                        currentWeekTotal=0,
+                        previousWeekTotal=0,
+                        trendPercentage=0.0
+                    ).dict()
+                )).dict()
+            )
+
+        # Анализ данных
+        total_usage = sum(s.total_usage for s in stats)
+        blocked_time = sum(s.blocked_time for s in stats)
+
+        # Находим самое используемое устройство
+        device_usage = defaultdict(int)
+        for s in stats:
+            device_usage[s.device_id] += s.total_usage
+
+        if device_usage:
+            most_used_device_id = max(device_usage, key=device_usage.get)
+            device = db.query(Device).filter(Device.device_id == most_used_device_id).first()
+            most_used_device = device.name if device else "Unknown device"
+        else:
+            most_used_device = "No devices"
+
+        # Рассчитываем среднее дневное использование
+        days_count = (end_date - start_date).days + 1
+        avg_daily = total_usage // days_count
+
+        # Данные для графика (по дням)
+        usage_by_day = defaultdict(int)
+        current_date = start_date
+        while current_date <= end_date:
+            usage_by_day[current_date] = 0
+            current_date += timedelta(days=1)
+
+        for s in stats:
+            usage_by_day[s.date] += s.total_usage
+
+        # Форматируем даты для меток
+        day_labels = [d.strftime("%a") for d in sorted(usage_by_day.keys())]
+        day_data = [usage_by_day[d] for d in sorted(usage_by_day.keys())]
+
+        # Топ приложений
+        app_usage = defaultdict(int)
+        for s in stats:
+            if s.app_usage:
+                for app, minutes in s.app_usage.items():
+                    app_usage[app] += minutes
+
+        top_apps = sorted(app_usage.items(), key=lambda x: x[1], reverse=True)[:5]
+        app_usage_data = [
+            AppUsageItem(name=app, minutes=minutes, category="")
+            for app, minutes in top_apps
         ]
 
-        # Фиктивные данные по категориям
-        category_data = [
-            CategoryUsageItem(name="Social", minutes=180),
-            CategoryUsageItem(name="Entertainment", minutes=90),
-            CategoryUsageItem(name="Browsing", minutes=45),
-            CategoryUsageItem(name="Games", minutes=30)
-        ]
+        # Данные для сравнения (текущая и предыдущая неделя)
+        prev_start = start_date - timedelta(days=7)
+        prev_end = end_date - timedelta(days=7)
 
-        # Фиктивные данные для сравнения
-        comparison_data = ComparisonData(
-            labels=["Social", "Entertainment", "Games", "Browsing", "Education"],
-            currentWeek=[120, 90, 30, 45, 15],
-            previousWeek=[100, 120, 45, 30, 20],
-            currentWeekTotal=300,
-            previousWeekTotal=315,
-            trendPercentage=-4.76
-        )
+        prev_stats = db.query(Statistic).filter(
+            Statistic.user_id == user_id,
+            Statistic.date.between(prev_start, prev_end)
+        ).all()
 
-        # Формируем полный ответ
+        prev_total = sum(s.total_usage for s in prev_stats) if prev_stats else 0
+
+        # Расчет изменения в процентах
+        trend_percentage = 0.0
+        if prev_total > 0:
+            trend_percentage = ((total_usage - prev_total) / prev_total) * 100
+
+        # Формируем ответ
         stats_data = StatsData(
-            totalUsage="12h 30m",
-            mostUsedDevice="Tom's iPad",
-            avgDailyUsage="2h 15m",
-            blockedTime="8h 45m",
-            usageData=usage_data.dict(),
-            appUsage=[item.dict() for item in app_usage],
-            categoryData=[item.dict() for item in category_data],
-            comparisonData=comparison_data.dict()
+            totalUsage=minutes_to_hh_mm(total_usage),
+            mostUsedDevice=most_used_device,
+            avgDailyUsage=minutes_to_hh_mm(avg_daily),
+            blockedTime=minutes_to_hh_mm(blocked_time),
+            usageData=UsageData(
+                labels=day_labels,
+                data=day_data
+            ).dict(),
+            appUsage=[item.dict() for item in app_usage_data],
+            categoryData=[],
+            comparisonData=ComparisonData(
+                labels=["Total Usage"],
+                currentWeek=[total_usage],
+                previousWeek=[prev_total],
+                currentWeekTotal=total_usage,
+                previousWeekTotal=prev_total,
+                trendPercentage=trend_percentage
+            ).dict()
         )
 
         return JSONResponse(
@@ -1429,11 +1524,80 @@ async def get_statistics(
             }
         )
 
+# Получение статистики использования
+#@app.get("/api/v1/stats")
+#async def get_statistics(
+#        user_id: str = Depends(verify_token),
+#        device: str = Query("all"),
+#        period: str = Query("week"),
+#        db: Session = Depends(get_db)
+#):
+#    """Получение статистики использования с фиктивными данными"""
+#    logger.info(f"Getting stats for user: {user_id}, device: {device}, period: {period}")
+#    try:
+#        # Фиктивные данные для графика использования
+#        usage_data = UsageData(
+#            labels=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+#            data=[120, 90, 150, 100, 180, 240, 200]
+#        )
+#
+#        # Фиктивные данные для использования приложений
+#        app_usage = [
+#            AppUsageItem(name="TikTok", minutes=120, category="Social"),
+#            AppUsageItem(name="YouTube", minutes=90, category="Entertainment"),
+#            AppUsageItem(name="Instagram", minutes=60, category="Social"),
+#            AppUsageItem(name="Chrome", minutes=45, category="Browsing"),
+#           AppUsageItem(name="Minecraft", minutes=30, category="Games")
+#        ]
+#
+#        # Фиктивные данные по категориям
+#        category_data = [
+#            CategoryUsageItem(name="Social", minutes=180),
+#            CategoryUsageItem(name="Entertainment", minutes=90),
+#            CategoryUsageItem(name="Browsing", minutes=45),
+#            CategoryUsageItem(name="Games", minutes=30)
+#        ]
+#
+#        # Фиктивные данные для сравнения
+#        comparison_data = ComparisonData(
+#            labels=["Social", "Entertainment", "Games", "Browsing", "Education"],
+#            currentWeek=[120, 90, 30, 45, 15],
+#            previousWeek=[100, 120, 45, 30, 20],
+#            currentWeekTotal=300,
+#            previousWeekTotal=315,
+#            trendPercentage=-4.76
+#        )
+#
+#        # Формируем полный ответ
+#        stats_data = StatsData(
+#            totalUsage="12h 30m",
+#            mostUsedDevice="Tom's iPad",
+#            avgDailyUsage="2h 15m",
+#            blockedTime="8h 45m",
+#            usageData=usage_data.dict(),
+#            appUsage=[item.dict() for item in app_usage],
+#            categoryData=[item.dict() for item in category_data],
+#            comparisonData=comparison_data.dict()
+#        )
+#
+#        return JSONResponse(
+#            status_code=200,
+#            content=StatsResponse(data=stats_data).dict()
+#        )
+#    except Exception as e:
+#        logger.error(f"Get statistics error: {str(e)}")
+#       return JSONResponse(
+#            status_code=500,
+#           content={
+#                "status": "error",
+#               "message": "Internal server error"
+#            }
+#     )
+
 
 # Получение профиля пользователя
 @app.get("/api/v1/profile")
 async def get_profile(
-        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -1464,7 +1628,6 @@ async def get_profile(
 # Обновление профиля пользователя
 @app.put("/api/v1/profile")
 async def update_profile(
-        request: Request,
         profile: ProfileUpdate,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1484,15 +1647,9 @@ async def update_profile(
         if profile.timezone is not None:
             user.timezone = profile.timezone
 
-        try:
-            db.commit()
-            return {"status": "success", "message": "Profile updated"}
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Update profile commit error: {str(e)}")
-            raise
+        db.commit()
+        return {"status": "success", "message": "Profile updated"}
     except Exception as e:
-        db.rollback()
         logger.error(f"Update profile error: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -1503,7 +1660,6 @@ async def update_profile(
 # Смена пароля
 @app.post("/api/v1/change-password")
 async def change_password(
-        request: Request,
         passwords: PasswordChange,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1521,6 +1677,7 @@ async def change_password(
         # Хеширование нового пароля
         new_password_hash = pwd_context.hash(passwords.newPassword)
         user.password = new_password_hash
+        db.commit()
 
         # Создаем уведомление
         notification = Notification(
@@ -1529,17 +1686,11 @@ async def change_password(
             message="Your password was successfully changed",
             type="info"
         )
+        db.add(notification)
+        db.commit()
 
-        try:
-            db.add(notification)
-            db.commit()
-            return {"status": "success", "message": "Password updated"}
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Change password commit error: {str(e)}")
-            raise
+        return {"status": "success", "message": "Password updated"}
     except Exception as e:
-        db.rollback()
         logger.error(f"Change password error: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -1566,7 +1717,6 @@ async def ping():
 # Категории приложений
 @app.post("/api/v1/categories", status_code=status.HTTP_201_CREATED)
 async def create_category(
-        request: Request,
         payload: CategoryCreate,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1581,6 +1731,9 @@ async def create_category(
             description=payload.description,
             restricted=payload.restricted
         )
+        db.add(category)
+        db.commit()
+        db.refresh(category)
 
         # Создаем уведомление
         notification = Notification(
@@ -1589,19 +1742,8 @@ async def create_category(
             message=f"Category '{payload.name}' was created",
             type="info"
         )
-
-        try:
-            db.add(category)
-            db.add(notification)
-            db.commit()
-            db.refresh(category)
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Create category commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
+        db.add(notification)
+        db.commit()
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
@@ -1619,7 +1761,6 @@ async def create_category(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Create category error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1632,7 +1773,6 @@ async def create_category(
 
 @app.get("/api/v1/categories", response_model=List[CategoryResponse])
 async def get_categories(
-        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -1659,7 +1799,6 @@ async def get_categories(
 
 @app.delete("/api/v1/categories/{category_id}")
 async def delete_category(
-        request: Request,
         category_id: str,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1681,6 +1820,8 @@ async def delete_category(
                 }
             )
 
+        db.delete(category)
+
         # Создаем уведомление
         notification = Notification(
             user_id=user_id,
@@ -1688,18 +1829,8 @@ async def delete_category(
             message=f"Category '{category.name}' was deleted",
             type="warning"
         )
-
-        try:
-            db.delete(category)
-            db.add(notification)
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Delete category commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
+        db.add(notification)
+        db.commit()
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -1709,7 +1840,6 @@ async def delete_category(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Delete category error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1723,7 +1853,6 @@ async def delete_category(
 # Скриншоты
 @app.post("/api/v1/screenshots", status_code=status.HTTP_201_CREATED)
 async def upload_screenshot(
-        request: Request,
         category: str = Form(...),
         transaction_id: str = Form(...),
         device_id: str = Form(...),
@@ -1765,6 +1894,7 @@ async def upload_screenshot(
             category=category,
             transaction_id=transaction_id
         )
+        db.add(screenshot)
 
         # Создаем уведомление
         notification = Notification(
@@ -1773,22 +1903,9 @@ async def upload_screenshot(
             message=f"Screenshot uploaded from {device.name}",
             type="info"
         )
-
-        try:
-            db.add(screenshot)
-            db.add(notification)
-            db.commit()
-            db.refresh(screenshot)
-        except Exception as e:
-            # Удаляем файл при ошибке БД
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            db.rollback()
-            logger.error(f"Upload screenshot commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
+        db.add(notification)
+        db.commit()
+        db.refresh(screenshot)
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
@@ -1806,7 +1923,6 @@ async def upload_screenshot(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Upload screenshot error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1820,7 +1936,6 @@ async def upload_screenshot(
 # Управление экранным временем
 @app.post("/api/v1/screen-time", status_code=status.HTTP_201_CREATED)
 async def create_screen_time(
-        request: Request,
         payload: ScreenTimeCreate,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -1850,6 +1965,7 @@ async def create_screen_time(
             schedule_start=payload.schedule_start,
             schedule_end=payload.schedule_end
         )
+        db.add(screen_time)
 
         # Создаем уведомление
         notification = Notification(
@@ -1858,19 +1974,9 @@ async def create_screen_time(
             message=f"Screen time limit set for {device.name}",
             type="info"
         )
-
-        try:
-            db.add(screen_time)
-            db.add(notification)
-            db.commit()
-            db.refresh(screen_time)
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Create screen time commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
+        db.add(notification)
+        db.commit()
+        db.refresh(screen_time)
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
@@ -1888,7 +1994,6 @@ async def create_screen_time(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Create screen time error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1901,7 +2006,6 @@ async def create_screen_time(
 
 @app.get("/api/v1/screen-time", response_model=List[ScreenTimeResponse])
 async def get_screen_times(
-        request: Request,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
 ):
@@ -1931,7 +2035,6 @@ async def get_screen_times(
 
 @app.put("/api/v1/screen-time/{screen_time_id}")
 async def update_screen_time(
-        request: Request,
         screen_time_id: str,
         payload: ScreenTimeCreate,
         user_id: str = Depends(verify_token),
@@ -1981,18 +2084,9 @@ async def update_screen_time(
             message=f"Screen time limit updated for {device.name}",
             type="info"
         )
-
-        try:
-            db.add(notification)
-            db.commit()
-            db.refresh(screen_time)
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Update screen time commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
+        db.add(notification)
+        db.commit()
+        db.refresh(screen_time)
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -2010,7 +2104,6 @@ async def update_screen_time(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Update screen time error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -2023,7 +2116,6 @@ async def update_screen_time(
 
 @app.delete("/api/v1/screen-time/{screen_time_id}")
 async def delete_screen_time(
-        request: Request,
         screen_time_id: str,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -2047,6 +2139,8 @@ async def delete_screen_time(
 
         device_name = screen_time.device.name if screen_time.device else "Unknown device"
 
+        db.delete(screen_time)
+
         # Создаем уведомление
         notification = Notification(
             user_id=user_id,
@@ -2054,18 +2148,8 @@ async def delete_screen_time(
             message=f"Screen time limit removed for {device_name}",
             type="warning"
         )
-
-        try:
-            db.delete(screen_time)
-            db.add(notification)
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Delete screen time commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
+        db.add(notification)
+        db.commit()
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -2075,7 +2159,6 @@ async def delete_screen_time(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Delete screen time error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -2088,7 +2171,6 @@ async def delete_screen_time(
 
 @app.post("/api/v1/screen-time/log", status_code=status.HTTP_201_CREATED)
 async def log_screen_time(
-        request: Request,
         payload: ScreenTimeLogCreate,
         user_id: str = Depends(verify_token),
         db: Session = Depends(get_db)
@@ -2135,17 +2217,8 @@ async def log_screen_time(
             timestamp=datetime.fromisoformat(payload.timestamp),
             activity_type=payload.activity_type
         )
-
-        try:
-            db.add(log)
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Log screen time commit error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error"
-            )
+        db.add(log)
+        db.commit()
 
         # Вычисляем использованное и оставшееся время
         logs = db.query(ScreenTimeLog).filter(
@@ -2171,7 +2244,6 @@ async def log_screen_time(
             }
         )
     except Exception as e:
-        db.rollback()
         logger.error(f"Log screen time error: {str(e)}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
