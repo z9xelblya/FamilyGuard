@@ -23,6 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR, HTTP_201_CREATED
 from dotenv import load_dotenv
 
+from ai_worker import moderate_screenshot
 from database import init_db, get_db, Session
 from models import *
 from schemas import *
@@ -137,33 +138,7 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     )
     return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
 
-@app.post("/api/v1/login-via-token")
-async def login_via_token(payload: LoginViaTokenRequest, db: Session = Depends(get_db)):
-    code = db.query(TetheringCode).filter(TetheringCode.code == payload.tetheringCode).first()
-    if not code:
-        return JSONResponse(status_code=401, content={
-            "status": "error",
-            "code": 401,
-            "message": "Invalid code"
-        })
-    user = db.query(User).filter(User.user_id == code.user_id).first()
-    now = datetime.now()
-    expire = now + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
-    token = jwt.encode({
-        "sub": user.user_id,
-        "email": user.email,
-        "iat": int(now.timestamp()),
-        "exp": int(expire.timestamp())
-    }, SECRET_KEY, algorithm=ALGORITHM)
-    data = LoginData(
-        token=token,
-        userId=user.user_id,
-        email=user.email,
-        firstName=user.firstName,
-        lastName=user.lastName,
-        expiresAt=expire.isoformat()
-    )
-    return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())
+
 
 
 
@@ -247,7 +222,7 @@ def custom_openapi():
     for path, ops in schema["paths"].items():
         if path in ("/api/v1/devices", "/api/v1/tethering-code", "/api/v1/devices/{device_id}/block",
                     "/api/v1/devices/{device_id}/unblock", "/api/v1/categories", "/api/v1/categories/{category_id}",
-                    "/api/v1/settings/screenshots", "/api/v1/settings/screen-time", "/api/v1/settings/screen-time/{screentimeId}", "/api/v1/settings/screen-time/log"):
+                    "/api/v1/settings/screenshots", "/api/v1/settings/screen-time", "/api/v1/settings/screen-time/{screentimeId}", "/api/v1/settings/screen-time/log", "/api/v1/ai"):
             for op in ops.values():
                 op.setdefault("security", []).append({"BearerAuth": []})
     app.openapi_schema = schema
@@ -483,6 +458,41 @@ async def post_screen_time_log(payload: LogScreentimeCreate, user_id: str = Depe
     )
 
     return JSONResponse(status_code=200, content=SuccessResponse(data=logScreentimeResponse).model_dump())
+
+@app.post("/api/v1/ai")
+async def moderate(
+        payload: AI,
+        user_id: str = Depends(verify_token),
+        db: Session = Depends(get_db)
+):
+    categories = db.query(Category).all()
+    categories_names = [i.name for i in categories]
+    print(categories_names)
+    image = payload.content
+    report = moderate_screenshot(image, categories)
+    print(report)
+    if "category" in report:
+        category = db.query(Category).filter(Category.name == report["category"]).first()
+        if category is None:
+            category = Category(
+                id=str(uuid.uuid4()),
+                name=report["category"],
+                label="",
+                description="",
+                restricted=False
+            )
+            db.add(category)
+            db.commit()
+            db.refresh(category)
+
+        success = SuccessResponseStatusMsg(
+            data=CategoryAi(categoryId=category.id, categoryName=report["category"], confidence=report["confidence"]),
+            msg="Content analyzed"
+        )
+        return JSONResponse(status_code=200, content=success.model_dump())
+    else:
+        return JSONResponse(status_code=400, content=StatusError(error="Invalid content type").model_dump())
+
 
 app.openapi = custom_openapi
 

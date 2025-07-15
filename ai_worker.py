@@ -7,7 +7,7 @@ from PIL import Image
 import google.generativeai as genai
 
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key="AIzaSyCVF6gWFxqKduhvNXUWAh0fPB4V-o0mRy4")
 
 
 def moderate_screenshot(
@@ -16,7 +16,7 @@ def moderate_screenshot(
 ) -> dict:
     """Принимает путь к файлу или байты изображения, отправляет его в
     `gemini-1.5-flash` и возвращает JSON‑словарь с полями
-    `{status, category, reason}`.
+    `{status, category, confidence}`.
 
     Параметры
     ----------
@@ -26,23 +26,31 @@ def moderate_screenshot(
     Возвращает
     ---------
     dict
-        Дикт с ключами `status, category, reason` либо поле `error` при сбое.
+        Дикт с ключами `status, category, confidence` либо поле `error` при сбое.
     """
 
     img_part = _prepare_image(image)
-    categories = categories or []
-    cat_line = ", ".join(categories) or "there are no_categories"
-    prompt = (
-        "You're the moderator of parental control. "
-        "Consider any form of cruelty: porn, violence, bullying, casinos, betting; "
-        "in social networks — mats and insults. Combine forbidden topics."
-        f" these are the categories you should pack {cat_line} into."
-        "if there is no such category, then create one, but then put an index sign so that it is understood that the new category"
-        "this is what it looks like: category: gambling!"
-        "Check the photos in detail, and don't embellish anything."
-        "if you can't identify the category, then leave the category: 'other'"
-        "Return only JSON like {\"category\",\"reason\"}."
-    )
+    if categories:
+        prompt = (
+            "You're the moderator of parental control. "
+            "Consider any form of cruelty: porn, violence, bullying, casinos, betting; "
+            "in social networks — mats and insults. Combine forbidden topics."
+            f" these are the categories you should pack {categories} into."
+            "Check the photos in detail, and don't embellish anything."
+            "Also you should create parameter 'confidence' that is a float between 0 and 1."
+            "Return only JSON like {\"category\",\"confidence\"}."
+        )
+    else:
+        prompt = (
+            "You're the moderator of parental control. "
+            "Consider any form of cruelty: porn, violence, bullying, casinos, betting; "
+            "in social networks — mats and insults. Combine forbidden topics."
+            "Then give name to category of this photo"
+            "this is what it looks like: category: gambling!"
+            "Check the photos in detail, and don't embellish anything."
+            "Also you should create parameter 'confidence' that is a float between 0 and 1."
+            "Return only JSON like {\"category\",\"confidence\"}."
+        )
 
     model = genai.GenerativeModel("gemini-1.5-flash")
     resp = model.generate_content([prompt, img_part],

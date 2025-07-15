@@ -7,3 +7,5 @@ passlib[bcrypt]
 pydantic[email]
 PyJWT
 python-dotenv
+pillow
+google-generativeai

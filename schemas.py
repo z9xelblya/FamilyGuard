@@ -77,11 +77,20 @@ class ScreenshotBase(BaseModel):
 class ScreenshotCreate(ScreenshotBase):
     pass
 
-
 class ScreenshotResponse(ScreenshotBase):
     id: str
     image: str
     model_config = ConfigDict(from_attributes=True)
+
+class Context(BaseModel):
+    appName: str
+    packageName: str
+
+class AI(BaseModel):
+    deviceId: str
+    contentType: str
+    content: str
+    context: Context
 
 class DeviceBase(BaseModel):
     name: str
@@ -193,5 +202,22 @@ class SuccessResponse(BaseModel):
 class SuccessResponseMsg(BaseModel):
     status: str = Field("success")
     msg: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SuccessResponseStatusMsg(BaseModel):
+    status: str = Field("success")
+    data: object
+    msg: str
+    model_config = ConfigDict(from_attributes=True)
+
+class CategoryAi(BaseModel):
+    categoryId: str
+    categoryName: str
+    confidence: float
+
+class StatusError(BaseModel):
+    status: str = Field("error")
+    error: str
 
     model_config = ConfigDict(from_attributes=True)
