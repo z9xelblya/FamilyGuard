@@ -26,6 +26,7 @@ class Device(Base):
     isBlocked = Column(Boolean)
     user_id = Column(String, ForeignKey('users.user_id'))
     tetheredAt = Column(DateTime(timezone=True), server_default=func.now())
+    heartbeat = Column(DateTime(timezone=True), server_default=func.now())
 
 class TetheringCode(Base):
     __tablename__ = 'tethering_code'

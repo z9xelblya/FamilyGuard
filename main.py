@@ -170,7 +170,8 @@ async def add_device(payload: DeviceCreate, user_id: str = Depends(verify_token)
         name=payload.name,
         model=payload.model,
         osVersion=payload.osVersion,
-        isBlocked=False
+        isBlocked=False,
+        heartbeat=now
     )
     db.add(device)
     db.commit()
@@ -222,7 +223,7 @@ def custom_openapi():
     for path, ops in schema["paths"].items():
         if path in ("/api/v1/devices", "/api/v1/tethering-code", "/api/v1/devices/{device_id}/block",
                     "/api/v1/devices/{device_id}/unblock", "/api/v1/categories", "/api/v1/categories/{category_id}",
-                    "/api/v1/settings/screenshots", "/api/v1/settings/screen-time", "/api/v1/settings/screen-time/{screentimeId}", "/api/v1/settings/screen-time/log", "/api/v1/ai"):
+                    "/api/v1/settings/screenshots", "/api/v1/settings/screen-time", "/api/v1/settings/screen-time/{screentimeId}", "/api/v1/settings/screen-time/log", "/api/v1/ai", "/api/v1/heartbeat"):
             for op in ops.values():
                 op.setdefault("security", []).append({"BearerAuth": []})
     app.openapi_schema = schema
@@ -493,6 +494,17 @@ async def moderate(
     else:
         return JSONResponse(status_code=400, content=StatusError(error="Invalid content type").model_dump())
 
+
+@app.post("/api/v1/heartbeat")
+async def heartbeat(device_id: str, db: Session = Depends(get_db)):
+    now = datetime.utcnow()
+    # обновляем устройство в БД
+    device = db.query(Device).filter(Device.device_id == device_id).first()
+    device.heartbeat = now
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    return JSONResponse(status_code=200, content=SuccessResponse(data="The last ping was updated successfuly!").model_dump())
 
 app.openapi = custom_openapi
 
