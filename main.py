@@ -371,7 +371,8 @@ async def screen_time(payload: ScreentimeCreate, user_id: str = Depends(verify_t
         deviceId = payload.deviceId,
         limit = payload.limit,
         scheduleStart=payload.schedule.start,
-        scheduleEnd=payload.schedule.end
+        scheduleEnd=payload.schedule.end,
+        appName = payload.appName
     )
     db.add(screentime)
     db.commit()
@@ -379,6 +380,7 @@ async def screen_time(payload: ScreentimeCreate, user_id: str = Depends(verify_t
     data = ScreentimeResponse(
         screentimeId=screentime.id,
         limit=screentime.limit,
+        appName=screentime.appName,
         schedule=ScheduleItem(start=screentime.scheduleStart, end=screentime.scheduleEnd)
     )
     return JSONResponse(status_code=200, content=SuccessResponse(data=data.dict()).model_dump())

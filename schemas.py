@@ -143,6 +143,7 @@ class ScheduleItem(BaseModel):
 
 class ScreentimeBase(BaseModel):
     limit: int
+    appName: str
     schedule: ScheduleItem
 
 class ScreentimeCreate(ScreentimeBase):

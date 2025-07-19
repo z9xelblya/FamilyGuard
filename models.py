@@ -66,6 +66,7 @@ class Screentime(Base):
     limit = Column(Integer)
     scheduleStart = Column(String)
     scheduleEnd = Column(String)
+    appName = Column(String)
 
 class LogScreentime(Base):
     __tablename__ = 'log_screentime'
